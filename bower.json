@@ -1,0 +1,36 @@
+{
+  "name": "purescript-double-acrostic",
+  "moduleType": [
+    "node"
+  ],
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output"
+  ],
+  "dependencies": {
+    "purescript-prelude": "^3.1.0",	
+    "purescript-lists": "^4.9.0",
+	"purescript-sets": "^3.0.0",
+    "purescript-maps": "^3.3.1",
+    "purescript-monoid": "^3.0.0",
+    "purescript-console": "^3.0.0",
+    "purescript-node-fs-aff": "^4.0.0",
+    "purescript-flare": "^3.1.0"
+  },
+  "authors": [
+    {
+      "name": "Sam Thomson",
+      "email": "sammthomson@gmail.com",
+      "homepage": "http://www.samthomson.org"
+    }
+  ],
+  "license": "MIT",
+  "private": true,
+  "devDependencies": {
+    "purescript-assert": "^3.0.0",
+    "purescript-psci-support": "^3.0.0",
+	"purescript-quickcheck": "^4.4.0"
+  }
+}
