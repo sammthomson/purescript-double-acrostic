@@ -1,6 +1,6 @@
 # purescript-double-acrostic
 
-An app for creating double acrostics.
+A web app for creating and playing double acrostics.
 
 
 ## Building
