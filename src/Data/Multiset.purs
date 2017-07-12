@@ -1,16 +1,17 @@
 module Data.Multiset where
 
-import Prelude (class Eq, class Ord, class Semigroup, class Show, flip, show, (+), (-), (<$>), (<<<), (<>), (>), (>>=), (>>>))
-import Data.Unfoldable (class Unfoldable)
-import Data.Newtype (class Newtype, unwrap, wrap)
+import Prelude
+
 import Data.Array as A
+import Data.Foldable (class Foldable, foldl)
 import Data.List.Lazy as LL
 import Data.Map as M
-import Data.Foldable (class Foldable, foldl)
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (fromMaybe)
 import Data.Monoid (class Monoid)
+import Data.Newtype (class Newtype, unwrap, wrap)
 import Data.String (joinWith)
 import Data.Tuple (Tuple(..))
+import Data.Unfoldable (class Unfoldable)
 
 
 newtype Multiset a = Multiset (M.Map a Int)
@@ -37,9 +38,13 @@ freq :: forall a. Ord a => a -> Multiset a -> Int
 freq k (Multiset m) = fromMaybe 0 (M.lookup k m)
 
 
+set :: forall a. Ord a => a -> Int -> Multiset a -> Multiset a
+set k v = unwrap >>> edit >>> wrap where
+  edit = if v == 0 then M.delete k else M.insert k v
+
+
 insertN :: forall a. Ord a => Int -> a -> Multiset a -> Multiset a
-insertN n x s = wrap (M.alter addN x (unwrap s)) where
-  addN = fromMaybe 0 >>> (+) n >>> Just
+insertN n k m = set k (freq k m + n) m
 
 
 insert :: forall a. Ord a => a -> Multiset a -> Multiset a
@@ -47,8 +52,7 @@ insert = insertN 1
 
 
 deleteN :: forall a. Ord a => Int -> a -> Multiset a -> Multiset a
-deleteN n c (Multiset m) = Multiset (M.update minusN c m) where
-  minusN v = if (v > n) then Just (v - n) else Nothing
+deleteN n = insertN (-n)
 
 
 delete :: forall a. Ord a => a -> Multiset a -> Multiset a
