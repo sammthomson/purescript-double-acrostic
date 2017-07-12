@@ -60,10 +60,11 @@ lettersRemaining quoteChars clue =
 
 renderCharCount :: MS.Multiset Char -> Markup
 renderCharCount cs =
-  H.table $ traverse_ renderChar $ (MS.toUnfoldable cs) :: LL.List _
-    where renderChar (Tuple c i) = H.tr $ do
-            H.td $ M.text $ singleton c
-            H.td $ M.text $ show i
+  H.table $ traverse_ renderChar $ MS.toUnfoldable cs :: LL.List _ where
+    renderChar (Tuple c i) = H.tr $ do
+            td $ M.text $ singleton c
+            td $ M.text $ show i where
+              td = if i < 0 then H.td ! A.className "err" else H.td
 
 
 renderBoard :: String -> Int -> Markup

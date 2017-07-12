@@ -28,6 +28,10 @@ td.blank {
   background-color: black;
 }
 
+td.err {
+  background-color: pink;
+}
+
 td div.idx {
   font-size: x-small;
 }
