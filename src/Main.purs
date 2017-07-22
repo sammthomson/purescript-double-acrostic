@@ -6,16 +6,17 @@ import Control.Lazy (defer)
 import Control.Monad.Eff (Eff)
 import DOM (DOM)
 import Data.Array as Arr
-import Data.Foldable (foldr, traverse_)
+import Data.Foldable (foldMap, foldr, traverse_)
 import Data.Int (ceil, toNumber)
+import Data.List as L
 import Data.List.Lazy as LL
 import Data.Multiset as MS
-import Data.String (singleton, toCharArray, toUpper)
+import Data.String (Pattern(..), singleton, split, take, toCharArray, toUpper)
 import Data.String.Regex (replace)
 import Data.String.Regex.Flags (global)
 import Data.String.Regex.Unsafe (unsafeRegex)
 import Data.Tuple (Tuple(..))
-import Flare (UI, intSlider, string, textarea)
+import Flare (UI, intSlider, resizableList, string, string_, textarea)
 import Flare.Smolder (runFlareHTML)
 import Signal.Channel (CHANNEL)
 import Text.Smolder.HTML as H
@@ -53,9 +54,9 @@ formatQuote quote numRows =
     rows cs = LL.cons (Arr.take numCols cs) (defer \_ ->
                                               rows $ Arr.drop numCols cs)
 
-lettersRemaining :: MS.Multiset Char -> String -> MS.Multiset Char
-lettersRemaining quoteChars clue =
-  foldr MS.delete quoteChars (toCharArray $ toUpper $ clue)
+lettersRemaining :: MS.Multiset Char -> L.List String -> MS.Multiset Char
+lettersRemaining quoteChars clues =
+  foldr MS.delete quoteChars (clues >>= (L.fromFoldable <<< toCharArray <<< toUpper))
 
 
 renderCharCount :: MS.Multiset Char -> Markup
@@ -73,20 +74,30 @@ renderBoard quote numRows =
     where row chars = H.tr $ traverse_ cell chars
 
 
-renderAll :: String -> String -> Int -> String -> Markup
-renderAll quote author numRows clue = do
-  H.h3 $ M.text "Board:"
-  renderBoard quote numRows
-  H.h3 $ M.text "Letters remaining:"
-  renderCharCount $ lettersRemaining (countChars quote) clue
+renderAll :: String -> Int -> L.List String -> Markup
+renderAll quote numRows clues =
+  let
+    boardId = "board"
+    authorId = "author"
+    charsId = "chars-left"
+  in do
+    H.div $ do
+      H.label ! A.for boardId $ M.text "Board:"
+      (renderBoard quote numRows) ! A.id boardId
+    H.div $ do
+      H.label ! A.for authorId $ M.text "Author:"
+      H.span ! A.id authorId $ M.text $ foldMap (toUpper <<< take 1) clues
+    H.div $ do
+      H.label ! A.for charsId $ M.text "Letters remaining:"
+      (renderCharCount $ lettersRemaining (countChars quote) clues) ! A.id charsId
 
 
 acr :: forall e. UI e Markup
 acr =
   renderAll <$> textarea "Quote:" "The only thing we have to fear is fear itself."
-              <*> string "Author:" "Franklin Roosevelt"
               <*> intSlider "Rows:" 1 10 4
-              <*> textarea "Clue:" ""
+              <*> resizableList "Clues:" string_ "" defaultClues where
+    defaultClues = L.fromFoldable $ split (Pattern "") "FRANKLINROOSEVELT"
 
 
 main ∷ forall e. Eff (dom :: DOM, channel :: CHANNEL | e) Unit
