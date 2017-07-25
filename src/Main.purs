@@ -18,6 +18,7 @@ import Data.String.Regex.Unsafe (unsafeRegex)
 import Data.Tuple (Tuple(..))
 import Flare (UI, intSlider, resizableList, string, textarea)
 import Flare.Smolder (runFlareHTML)
+import Puzzle (Clue, Puzzle, answers, mkClue, mkPuzzle, source)
 import Signal.Channel (CHANNEL)
 import Text.Smolder.HTML as H
 import Text.Smolder.HTML.Attributes as A
@@ -26,8 +27,6 @@ import Text.Smolder.Markup as M
 
 
 type Markup = M.Markup Unit
-
-type Clue = { clue :: String, answer :: String }
 
 countChars :: String -> MS.Multiset Char
 countChars s = MS.fromFoldable $ toCharArray $ replace notLetters "" $ toUpper s
@@ -44,15 +43,15 @@ lettersStr = "A-Z"
 notLetters :: Regex
 notLetters = unsafeRegex ("[^" <> lettersStr <> "]") global
 
+notDisplayableChar :: Regex
+notDisplayableChar = unsafeRegex ("[^ " <> lettersStr <> punctuationStr <> "]") global
 
-notLetterOrSpace :: Regex
--- notLetterOrSpace = unsafeRegex "[^ A-Z]" global
-notLetterOrSpace = unsafeRegex ("[^ " <> lettersStr <> punctuationStr <> "]") global
-
+-- | Removes chars that shouldn't be displayed in the board.
 cleanQuote :: String -> String
-cleanQuote q = replace notLetterOrSpace "" $ toUpper q
+cleanQuote q = replace notDisplayableChar "" $ toUpper q
 
-
+-- | Arranges `quote` into `numRows` roughly equal rows (the last row might
+-- | be shorter).
 formatQuote :: String -> Int -> Array (Array (Tuple Int Char))
 formatQuote quote numRows =
   Arr.fromFoldable $ LL.take numRows $ rows (Arr.mapWithIndex Tuple chars)
@@ -62,9 +61,9 @@ formatQuote quote numRows =
     rows cs = LL.cons (Arr.take numCols cs) (defer \_ ->
                                               rows $ Arr.drop numCols cs)
 
-lettersRemaining :: MS.Multiset Char -> L.List String -> MS.Multiset Char
-lettersRemaining quoteChars clues =
-  foldr MS.delete quoteChars (clues >>= (L.fromFoldable <<< toCharArray <<< toUpper))
+lettersRemaining :: String -> L.List String -> MS.Multiset Char
+lettersRemaining quote clues =
+  foldr MS.delete (countChars quote) (clues >>= (L.fromFoldable <<< toCharArray <<< toUpper))
 
 
 renderCharCount :: MS.Multiset Char -> Markup
@@ -75,7 +74,7 @@ renderCharCount cs =
             td $ M.text $ show i where
               td = if i < 0 then H.td ! A.className "err" else H.td
 
-
+-- | Renders a single char in the board.
 cell :: Tuple Int Char -> Markup
 cell (Tuple i c) =
   td $ do
@@ -89,42 +88,54 @@ cell (Tuple i c) =
             else
                H.td
 
-
+-- | Renders the board.
 renderBoard :: String -> Int -> Markup
 renderBoard quote numRows =
   H.table $ traverse_ row $ formatQuote quote numRows
     where row chars = H.tr $ traverse_ cell chars
 
 
-renderAll :: String -> Int -> L.List Clue -> Markup
-renderAll quote numRows clues =
+renderPuzzle :: Puzzle -> Markup
+renderPuzzle puzzle =
   let
     boardId = "board"
     authorId = "author"
     charsId = "chars-left"
-    clueAnswers = map _.answer clues
+    charsLeft = lettersRemaining puzzle.quote (answers puzzle)
   in do
     H.div $ do
-      H.label ! A.for boardId $ M.text "Board:"
-      (renderBoard quote numRows) ! A.id boardId
+      -- H.label ! A.for boardId $ M.text "Board:"
+      (renderBoard puzzle.quote puzzle.numRows) ! A.id boardId
     H.div $ do
-      H.label ! A.for authorId $ M.text "Author:"
-      H.span ! A.id authorId $ M.text $ foldMap (toUpper <<< take 1) clueAnswers
+      H.label ! A.for authorId $ M.text "Source:"
+      H.span ! A.id authorId $ M.text $ source puzzle
     H.div $ do
       H.label ! A.for charsId $ M.text "Letters remaining:"
-      (renderCharCount $ lettersRemaining (countChars quote) clueAnswers) ! A.id charsId
+      (renderCharCount charsLeft) ! A.id charsId
 
 
-clue :: forall e. Clue -> UI e Clue
-clue x = { clue: _, answer: _ } <$> string "Clue:" x.clue
-                                <*> string "Answer:" x.answer
+clueUi :: forall e. Clue -> UI e Clue
+clueUi clue = mkClue <$> string "Clue:" clue.clue
+                     <*> string "Answer:" clue.answer
+
+cluesUi :: forall e. L.List Clue -> UI e (L.List Clue)
+cluesUi clues = resizableList "Clues:" clueUi emptyClue clues where
+  emptyClue = { clue: "", answer: "" }
+
+
+puzzleUi :: forall e. Puzzle -> UI e Puzzle
+puzzleUi puzzle = mkPuzzle <$> textarea "Quote:" puzzle.quote
+                           <*> intSlider "Rows:" 1 10 puzzle.numRows
+                           <*> cluesUi puzzle.clues
 
 acr :: forall e. UI e Markup
-acr =
-  renderAll <$> textarea "Quote:" "The only thing we have to fear is fear itself."
-              <*> intSlider "Rows:" 1 10 4
-              <*> resizableList "Clues:" clue { clue: "", answer: "" } defaultClues where
-    defaultClues = L.fromFoldable $ { clue: "", answer: _ } <$> split (Pattern "") "franklinroosevelt"
+acr = renderPuzzle <$> puzzleUi defaultPuzzle where
+    defaultPuzzle = {
+      quote: "The only thing we have to fear is fear itself.",
+      numRows: 4,
+      clues: L.fromFoldable defaultClues
+    }
+    defaultClues = mkClue "" <$> split (Pattern "") "franklinroosevelt"
 
 
 main ∷ forall e. Eff (dom :: DOM, channel :: CHANNEL | e) Unit
