@@ -37,6 +37,15 @@ td.blank {
   background-color: black;
 }
 
+td.punct {
+  color: white;
+  background-color: black;
+}
+
+td.punct .idx {
+  color: black;
+}
+
 td.err {
   background-color: pink;
 }
@@ -47,4 +56,10 @@ td div.idx {
 
 td div.letter {
   text-align: center;
+}
+
+
+#chars-left, #chars-left td {
+  border: 0px;
+  text-align: right;
 }
