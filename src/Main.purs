@@ -12,7 +12,7 @@ import Data.Int (ceil, toNumber)
 import Data.List as L
 import Data.List.Lazy as LL
 import Data.Multiset as MS
-import Data.String (Pattern(..), singleton, split, toCharArray, toUpper)
+import Data.String (singleton, toCharArray, toUpper)
 import Data.String.Regex (Regex, replace, test)
 import Data.String.Regex.Flags (global)
 import Data.String.Regex.Unsafe (unsafeRegex)
@@ -134,9 +134,18 @@ acr = renderPuzzle <$> puzzleUi defaultPuzzle where
     defaultPuzzle = {
       quote: "The only thing we have to fear is fear itself.",
       numRows: 4,
-      clues: L.fromFoldable defaultClues
+      clues: L.fromFoldable [
+        mkClue "Snitch" "rat",
+        mkClue "\"Lay _ me, I'm starving!\"" "off",
+        mkClue "Common shower gift" "onesie",
+        mkClue "Reason to stay home" "shy",
+        mkClue "Ambivalent reply" "either",
+        mkClue "Bland dessert, perhaps" "vegan",
+        mkClue "Will Ferrel role" "elf",
+        mkClue "Some soccer fields" "lit",
+        mkClue "A thing to do in spring" "thaw"
+      ]
     }
-    defaultClues = mkClue "" <$> split (Pattern "") "franklinroosevelt"
 
 
 main ∷ forall e. Eff (dom :: DOM, channel :: CHANNEL | e) Unit

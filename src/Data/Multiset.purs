@@ -13,7 +13,6 @@ import Data.Newtype (class Newtype)
 import Data.Semigroup.Commutative (class Commutative)
 import Data.String (joinWith)
 import Data.Tuple (Tuple(..))
-import Data.Unfoldable (class Unfoldable)
 
 
 newtype Multiset a = Multiset (M.Map a Int)
