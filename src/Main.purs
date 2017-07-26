@@ -6,12 +6,13 @@ import Control.Lazy (defer)
 import Control.Monad.Eff (Eff)
 import DOM (DOM)
 import Data.Array as Arr
-import Data.Foldable (foldMap, foldr, traverse_)
+import Data.Foldable (foldl, traverse_)
+import Data.Group (ginverse)
 import Data.Int (ceil, toNumber)
 import Data.List as L
 import Data.List.Lazy as LL
 import Data.Multiset as MS
-import Data.String (Pattern(..), singleton, split, take, toCharArray, toUpper)
+import Data.String (Pattern(..), singleton, split, toCharArray, toUpper)
 import Data.String.Regex (Regex, replace, test)
 import Data.String.Regex.Flags (global)
 import Data.String.Regex.Unsafe (unsafeRegex)
@@ -61,14 +62,15 @@ formatQuote quote numRows =
     rows cs = LL.cons (Arr.take numCols cs) (defer \_ ->
                                               rows $ Arr.drop numCols cs)
 
+-- | Counts chars in `quote` that haven't been used yet in `clues`
 lettersRemaining :: String -> L.List String -> MS.Multiset Char
 lettersRemaining quote clues =
-  foldr MS.delete (countChars quote) (clues >>= (L.fromFoldable <<< toCharArray <<< toUpper))
+  foldl (<>) (countChars quote) ((ginverse <<< countChars) <$> clues)
 
 
 renderCharCount :: MS.Multiset Char -> Markup
 renderCharCount cs =
-  H.table $ traverse_ renderChar $ MS.toUnfoldable cs :: LL.List _ where
+  H.table $ traverse_ renderChar $ MS.entryList cs where
     renderChar (Tuple c i) = H.tr $ do
             td $ M.text $ singleton c <> ":"
             td $ M.text $ show i where
@@ -104,7 +106,6 @@ renderPuzzle puzzle =
     charsLeft = lettersRemaining puzzle.quote (answers puzzle)
   in do
     H.div $ do
-      -- H.label ! A.for boardId $ M.text "Board:"
       (renderBoard puzzle.quote puzzle.numRows) ! A.id boardId
     H.div $ do
       H.label ! A.for authorId $ M.text "Source:"

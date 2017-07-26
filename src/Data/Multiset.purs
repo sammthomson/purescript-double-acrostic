@@ -4,11 +4,13 @@ import Prelude
 
 import Data.Array as A
 import Data.Foldable (class Foldable, foldl)
+import Data.Group (class Group)
 import Data.List.Lazy as LL
 import Data.Map as M
 import Data.Maybe (fromMaybe)
 import Data.Monoid (class Monoid)
-import Data.Newtype (class Newtype, unwrap, wrap)
+import Data.Newtype (class Newtype)
+import Data.Semigroup.Commutative (class Commutative)
 import Data.String (joinWith)
 import Data.Tuple (Tuple(..))
 import Data.Unfoldable (class Unfoldable)
@@ -21,50 +23,71 @@ empty :: forall a. Multiset a
 empty = Multiset M.empty
 
 
--- | Not a valid `Functor` (because of `Ord`?), but useful anyway
+entryList :: forall a. Multiset a -> LL.List (Tuple a Int)
+entryList (Multiset m) = M.toAscUnfoldable m
+
+
+-- | Map `f` over the entries of `ma` then append the result to `mb`.
+mapAppend :: forall a b. Ord b =>
+             (Tuple a Int -> Tuple b Int) ->
+             Multiset a ->
+             Multiset b ->
+             Multiset b
+mapAppend f ma mb = foldl go mb $ f <$> entryList ma where
+  go acc (Tuple k v) = insertN v k acc
+
+
+-- | Map `f` over the entries of `ma`.
+mapEntries :: forall a b. Ord b =>
+              (Tuple a Int -> Tuple b Int) ->
+              Multiset a ->
+              Multiset b
+mapEntries f ma = mapAppend f ma empty
+
+
+-- | Not a valid `Functor` (for the same reason `Set` isn't), but useful anyway
 map :: forall a b. Ord a => Ord b => (a -> b) -> Multiset a -> Multiset b
-map f s = foldl (\acc iN -> iN acc) empty inserts where
-  inserts :: LL.List (Multiset b -> Multiset b)
-  inserts = (\(Tuple k v) -> insertN v (f k)) <$> unfolded
-  unfolded :: LL.List (Tuple a Int)
-  unfolded = toUnfoldable s
+map f = mapEntries (\(Tuple k v) -> Tuple (f k) v)
 
 
-toUnfoldable :: forall t a. Ord a => Unfoldable t => Multiset a -> t (Tuple a Int)
-toUnfoldable s = M.toAscUnfoldable (unwrap s)
-
-
+-- | Lookup the count of `k`.
 freq :: forall a. Ord a => a -> Multiset a -> Int
 freq k (Multiset m) = fromMaybe 0 (M.lookup k m)
 
 
+-- | Set the count of of `k` to be `v`.
 set :: forall a. Ord a => a -> Int -> Multiset a -> Multiset a
-set k v = unwrap >>> edit >>> wrap where
-  edit = if v == 0 then M.delete k else M.insert k v
+set k v (Multiset m) =
+  Multiset $ if v == 0 then M.delete k m else M.insert k v m
 
 
+-- | Insert `n` copies of `k`.
 insertN :: forall a. Ord a => Int -> a -> Multiset a -> Multiset a
 insertN n k m = set k (freq k m + n) m
 
 
+-- | Insert one `k`.
 insert :: forall a. Ord a => a -> Multiset a -> Multiset a
 insert = insertN 1
 
 
+-- | Remove `n` copies of `k`.
 deleteN :: forall a. Ord a => Int -> a -> Multiset a -> Multiset a
 deleteN n = insertN (-n)
 
 
+-- | Remove one `k`.
 delete :: forall a. Ord a => a -> Multiset a -> Multiset a
 delete = deleteN 1
 
 
+-- | Construct a `Multiset` from the given `Foldable`.
 fromFoldable :: forall t a. Foldable t => Eq a => Ord a => t a -> Multiset a
 fromFoldable = foldl (flip insert) empty
 
 
 toList :: forall a. Multiset a -> LL.List a
-toList (Multiset m) = M.toUnfoldable m >>= (\(Tuple k v) -> LL.replicate v k)
+toList (Multiset m) = M.toAscUnfoldable m >>= (\(Tuple k v) -> LL.replicate v k)
 
 
 toArray :: forall a. Ord a => Multiset a -> Array a
@@ -83,11 +106,18 @@ instance showMultiset :: Show a => Show (Multiset a) where
 
 
 instance semigroupMultiset :: Ord a => Semigroup (Multiset a) where
-  append (Multiset a) (Multiset b) = Multiset (M.unionWith (+) a b)
+  append = mapAppend id
+
+
+instance commutativeMultiset :: Ord a => Commutative (Multiset a)
 
 
 instance monoidMultiset :: Ord a => Monoid (Multiset a) where
   mempty = empty
+
+
+instance groupMultiset :: Ord a => Group (Multiset a) where
+  ginverse = mapEntries (\(Tuple k v) -> Tuple k (-v))
 
 
 instance foldableMultiset :: Foldable Multiset where

@@ -33,5 +33,6 @@ mkPuzzle = { quote: _, numRows: _, clues: _ }
 answers :: Puzzle -> List String
 answers puzzle = _.answer <$> puzzle.clues
 
+-- | Acronym of the answers
 source :: Puzzle -> String
 source puzzle = foldMap (toUpper <<< take 1) $ answers puzzle
