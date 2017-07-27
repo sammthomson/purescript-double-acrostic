@@ -6,12 +6,13 @@ import Control.Lazy (defer)
 import Control.Monad.Eff (Eff)
 import DOM (DOM)
 import Data.Array as Arr
-import Data.Foldable (foldl, traverse_)
+import Data.Foldable (class Foldable, foldl, traverse_)
 import Data.Group (ginverse)
 import Data.Int (ceil, toNumber)
 import Data.List as L
 import Data.List.Lazy as LL
 import Data.Multiset as MS
+import Data.Newtype (unwrap)
 import Data.String (singleton, toCharArray, toUpper)
 import Data.String.Regex (Regex, replace, test)
 import Data.String.Regex.Flags (global)
@@ -19,7 +20,7 @@ import Data.String.Regex.Unsafe (unsafeRegex)
 import Data.Tuple (Tuple(..))
 import Flare (UI, intSlider, resizableList, string, textarea)
 import Flare.Smolder (runFlareHTML)
-import Puzzle (Clue, Puzzle, answers, mkClue, mkPuzzle, source)
+import Puzzle (Clue(..), Puzzle(..), answers, mkClue, mkPuzzle, source)
 import Signal.Channel (CHANNEL)
 import Text.Smolder.HTML as H
 import Text.Smolder.HTML.Attributes as A
@@ -63,7 +64,10 @@ formatQuote quote numRows =
                                               rows $ Arr.drop numCols cs)
 
 -- | Counts chars in `quote` that haven't been used yet in `clues`
-lettersRemaining :: String -> L.List String -> MS.Multiset Char
+lettersRemaining :: forall t. Functor t => Foldable t =>
+                    String ->
+                    t String ->
+                    MS.Multiset Char
 lettersRemaining quote clues =
   foldl (<>) (countChars quote) ((ginverse <<< countChars) <$> clues)
 
@@ -100,13 +104,14 @@ renderBoard quote numRows =
 renderPuzzle :: Puzzle -> Markup
 renderPuzzle puzzle =
   let
+    p = unwrap puzzle
+    charsLeft = lettersRemaining p.quote (answers puzzle)
     boardId = "board"
     authorId = "author"
     charsId = "chars-left"
-    charsLeft = lettersRemaining puzzle.quote (answers puzzle)
   in do
     H.div $ do
-      (renderBoard puzzle.quote puzzle.numRows) ! A.id boardId
+      (renderBoard p.quote p.numRows) ! A.id boardId
     H.div $ do
       H.label ! A.for authorId $ M.text "Source:"
       H.span ! A.id authorId $ M.text $ source puzzle
@@ -116,32 +121,32 @@ renderPuzzle puzzle =
 
 
 clueUi :: forall e. Clue -> UI e Clue
-clueUi clue = mkClue <$> string "Clue:" clue.clue
-                     <*> string "Answer:" clue.answer
+clueUi (Clue clue) = mkClue <$> string "Clue:" clue.clue
+                            <*> string "Answer:" clue.answer
 
 cluesUi :: forall e. L.List Clue -> UI e (L.List Clue)
 cluesUi clues = resizableList "Clues:" clueUi emptyClue clues where
-  emptyClue = { clue: "", answer: "" }
+  emptyClue = mkClue "" ""
 
 
 puzzleUi :: forall e. Puzzle -> UI e Puzzle
-puzzleUi puzzle = mkPuzzle <$> textarea "Quote:" puzzle.quote
-                           <*> intSlider "Rows:" 1 10 puzzle.numRows
-                           <*> cluesUi puzzle.clues
+puzzleUi (Puzzle p) = mkPuzzle <$> textarea "Quote:" p.quote
+                               <*> intSlider "Rows:" 1 10 p.numRows
+                               <*> cluesUi (L.fromFoldable p.clues)
 
 acr :: forall e. UI e Markup
 acr = renderPuzzle <$> puzzleUi defaultPuzzle where
-    defaultPuzzle = {
+    defaultPuzzle = Puzzle {
       quote: "The only thing we have to fear is fear itself.",
       numRows: 4,
-      clues: L.fromFoldable [
+      clues: [
         mkClue "Snitch" "rat",
         mkClue "\"Lay _ me, I'm starving!\"" "off",
         mkClue "Common shower gift" "onesie",
         mkClue "Reason to stay home" "shy",
         mkClue "Ambivalent reply" "either",
         mkClue "Bland dessert, perhaps" "vegan",
-        mkClue "Will Ferrel role" "elf",
+        mkClue "Will Ferrell role" "elf",
         mkClue "Some soccer fields" "lit",
         mkClue "A thing to do in spring" "thaw"
       ]
