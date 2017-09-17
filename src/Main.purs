@@ -12,7 +12,6 @@ import Data.Int (ceil, toNumber)
 import Data.List as L
 import Data.List.Lazy as LL
 import Data.Multiset as MS
-import Data.Newtype (unwrap)
 import Data.String (singleton, toCharArray, toUpper)
 import Data.String.Regex (Regex, replace, test)
 import Data.String.Regex.Flags (global)
@@ -20,7 +19,7 @@ import Data.String.Regex.Unsafe (unsafeRegex)
 import Data.Tuple (Tuple(..))
 import Flare (UI, intSlider, resizableList, string, textarea)
 import Flare.Smolder (runFlareHTML)
-import Puzzle (Clue(..), Puzzle(..), answers, mkClue, mkPuzzle, source)
+import Puzzle (Clue, Puzzle, answers, mkClue, mkPuzzle, source)
 import Signal.Channel (CHANNEL)
 import Text.Smolder.HTML as H
 import Text.Smolder.HTML.Attributes as A
@@ -102,10 +101,9 @@ renderBoard quote numRows =
 
 
 renderPuzzle :: Puzzle -> Markup
-renderPuzzle puzzle =
+renderPuzzle p =
   let
-    p = unwrap puzzle
-    charsLeft = lettersRemaining p.quote (answers puzzle)
+    charsLeft = lettersRemaining p.quote (answers p)
     boardId = "board"
     authorId = "author"
     charsId = "chars-left"
@@ -114,15 +112,15 @@ renderPuzzle puzzle =
       (renderBoard p.quote p.numRows) ! A.id boardId
     H.div $ do
       H.label ! A.for authorId $ M.text "Source:"
-      H.span ! A.id authorId $ M.text $ source puzzle
+      H.span ! A.id authorId $ M.text $ source p
     H.div $ do
       H.label ! A.for charsId $ M.text "Letters remaining:"
       (renderCharCount charsLeft) ! A.id charsId
 
 
 clueUi :: forall e. Clue -> UI e Clue
-clueUi (Clue clue) = mkClue <$> string "Clue:" clue.clue
-                            <*> string "Answer:" clue.answer
+clueUi clue = mkClue <$> string "Clue:" clue.clue
+                     <*> string "Answer:" clue.answer
 
 cluesUi :: forall e. L.List Clue -> UI e (L.List Clue)
 cluesUi clues = resizableList "Clues:" clueUi emptyClue clues where
@@ -130,13 +128,13 @@ cluesUi clues = resizableList "Clues:" clueUi emptyClue clues where
 
 
 puzzleUi :: forall e. Puzzle -> UI e Puzzle
-puzzleUi (Puzzle p) = mkPuzzle <$> textarea "Quote:" p.quote
-                               <*> intSlider "Rows:" 1 10 p.numRows
-                               <*> cluesUi (L.fromFoldable p.clues)
+puzzleUi p = mkPuzzle <$> textarea "Quote:" p.quote
+                      <*> intSlider "Rows:" 1 10 p.numRows
+                      <*> cluesUi (L.fromFoldable p.clues)
 
 acr :: forall e. UI e Markup
 acr = renderPuzzle <$> puzzleUi defaultPuzzle where
-    defaultPuzzle = Puzzle {
+    defaultPuzzle = {
       quote: "The only thing we have to fear is fear itself.",
       numRows: 4,
       clues: [
