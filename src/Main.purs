@@ -33,10 +33,11 @@ type Markup = M.Markup Unit
 renderLetterCount :: MS.Multiset Char -> Markup
 renderLetterCount cs =
   H.table $ traverse_ renderChar $ MS.entryList cs where
-    renderChar (Tuple c i) = H.tr $ do
-            td $ M.text $ singleton c <> ":"
-            td $ M.text $ show i where
-              td = if i < 0 then H.td ! A.className "err" else H.td
+    renderChar (Tuple c i) =
+      H.tr $ do
+        td $ M.text $ singleton c <> ":"
+        td $ M.text $ show i where
+          td = if i >= 0 then H.td else H.td ! A.className "err"
 
 
 -- only letters get indices
@@ -58,15 +59,17 @@ reshape numCols xs =
 -- | Pairs each letter with its index (1-indexed).
 indexChars :: Array CharType -> Array Cell
 indexChars chars =
-  unfoldr step $ Tuple 1 chars where
-    step (Tuple i xs) = incOnLetter <$> uncons xs where
-      incOnLetter { head, tail } = Tuple (cell head) (Tuple (newI head) tail) where
-        cell (Letter c) = LetterCell i c
-        cell (Punct c) = PunctCell c
-        cell _ = SpaceCell
-        -- but only increment `i` if `head` is a letter
-        newI (Letter c) = i + 1
-        newI _ = i
+  unfoldr maybeStep $ Tuple 1 chars where
+    maybeStep (Tuple i xs) = step <$> uncons xs where
+      step { head, tail } = Tuple cell (Tuple newI tail) where
+        cell = case head of
+          Letter c -> LetterCell i c
+          Punct c -> PunctCell c
+          _ -> SpaceCell
+        -- only increment `i` if `head` is a letter
+        newI = case head of
+          Letter c -> i + 1
+          _ -> i
 
 
 -- | Renders a single char and its index into the board.

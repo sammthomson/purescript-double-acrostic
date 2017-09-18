@@ -1,14 +1,11 @@
 #content {
+  float: left;
   margin: 10px;
 }
 
 #controls-container {
   float: left;
   margin-right: 20px;
-}
-
-#content {
-  float: left;
 }
 
 .flare-input {
@@ -40,10 +37,6 @@ td.blank {
 td.punct {
   color: white;
   background-color: black;
-}
-
-td.punct .idx {
-  color: black;
 }
 
 td.err {

@@ -87,7 +87,7 @@ countLetters s = MS.fromFoldable $ mapMaybe lettersOnly $ cleanQuote s where
   lettersOnly (Letter c) = Just c
   lettersOnly _ = Nothing
 
--- | Counts chars in `quote` that haven't been used yet in `clues`
+-- | Counts letters in `p.quote` minus letters in `answers p`.
 lettersRemaining :: Puzzle -> MS.Multiset Char
 lettersRemaining p =
   countLetters p.quote <> ginverse (foldMap countLetters $ answers p)
