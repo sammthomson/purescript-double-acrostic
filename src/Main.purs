@@ -9,7 +9,6 @@ import Data.Array as Arr
 import Data.Array (drop, length, take, uncons)
 import Data.Foldable (class Foldable, foldMap, traverse_)
 import Data.Group (ginverse)
-import Data.Int (ceil, toNumber)
 import Data.List as L
 import Data.List.Lazy as LL
 import Data.Multiset as MS
@@ -72,21 +71,12 @@ reshape numCols xs =
 indexChars :: Array Char -> Array (Tuple Int Char)
 indexChars chars =
   unfoldr step $ Tuple 1 chars where
-    step (Tuple i xs) = f <$> uncons xs where
-      f { head, tail } = Tuple (Tuple i head) (Tuple newI tail) where
-        -- only increment `i` if `head` is a letter
+    step (Tuple i xs) = incOnLetter <$> uncons xs where
+      -- emit `(i, head)`, recurse on `(i+1, tail)`
+      incOnLetter { head, tail } = Tuple (Tuple i head) (Tuple newI tail) where
+        -- but only increment `i` if `head` is a letter
         newI = if test notLetters (singleton head) then i else i + 1
 
-
--- | Arranges `quote` into `numRows` roughly equal rows (the last row might
--- | be shorter).
-formatQuote :: String -> Int -> Array (Array (Tuple Int Char))
-formatQuote quote numRows =
-  let
-    chars = toCharArray $ cleanQuote quote
-    numCols = ceil $ (toNumber $ length chars) / (toNumber numRows)
-  in
-    reshape numCols $ indexChars chars
 
 -- | Counts chars in `quote` that haven't been used yet in `clues`
 lettersRemaining :: forall t. Functor t => Foldable t =>
@@ -97,6 +87,8 @@ lettersRemaining quote clues =
   countChars quote <> ginverse (foldMap countChars clues)
 
 
+-- | Renders a table with how many of each letter remain,
+-- | with overused letters in red.
 renderCharCount :: MS.Multiset Char -> Markup
 renderCharCount cs =
   H.table $ traverse_ renderChar $ MS.entryList cs where
@@ -106,7 +98,7 @@ renderCharCount cs =
               td = if i < 0 then H.td ! A.className "err" else H.td
 
 
--- | Renders a single char in the board.
+-- | Renders a single char and its index into the board.
 renderCell :: Tuple Int Char -> Markup
 renderCell (Tuple i c) =
   td $ do
@@ -123,10 +115,12 @@ renderCell (Tuple i c) =
 
 -- | Renders the board.
 renderBoard :: String -> Int -> Markup
-renderBoard quote numRows =
-  H.table $ traverse_ renderRow $ formatQuote quote numRows where
+renderBoard quote numCols =
+  H.table $ traverse_ renderRow $ formatQuote quote numCols where
     renderRow chars =
       H.tr $ traverse_ renderCell chars
+    formatQuote quote numCols =
+      reshape numCols $ indexChars (toCharArray $ cleanQuote quote)
 
 
 renderPuzzle :: Puzzle -> Markup
@@ -138,7 +132,7 @@ renderPuzzle p =
     charsId = "chars-left"
   in do
     H.div $ do
-      (renderBoard p.quote p.numRows) ! A.id boardId
+      (renderBoard p.quote p.numCols) ! A.id boardId
     H.div $ do
       H.label ! A.for authorId $ M.text "Source:"
       H.span ! A.id authorId $ M.text $ source p
@@ -158,14 +152,14 @@ cluesUi clues = resizableList "Clues:" clueUi emptyClue clues where
 
 puzzleUi :: forall e. Puzzle -> UI e Puzzle
 puzzleUi p = mkPuzzle <$> textarea "Quote:" p.quote
-                      <*> intSlider "Rows:" 1 10 p.numRows
+                      <*> intSlider "Columns:" 1 10 p.numCols
                       <*> cluesUi (L.fromFoldable p.clues)
 
 acr :: forall e. UI e Markup
 acr = renderPuzzle <$> puzzleUi defaultPuzzle where
     defaultPuzzle = {
       quote: "The only thing we have to fear is fear itself.",
-      numRows: 4,
+      numCols: 12,
       clues: [
         mkClue "Snitch" "rat",
         mkClue "\"Lay _ me, I'm starving!\"" "off",

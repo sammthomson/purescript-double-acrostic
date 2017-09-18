@@ -27,7 +27,7 @@ type Clue = {
 
 type Puzzle = {
   quote :: String,
-  numRows :: Int,
+  numCols :: Int,
   clues :: Array Clue
 }
 
@@ -35,7 +35,7 @@ mkClue :: String -> String -> Clue
 mkClue c a = { clue: c, answer: a }
 
 mkPuzzle :: forall t. Foldable t => String -> Int -> t Clue -> Puzzle
-mkPuzzle q r c = { quote: q, numRows: r, clues: fromFoldable c }
+mkPuzzle q cols c = { quote: q, numCols: cols, clues: fromFoldable c }
 
 answers :: Puzzle -> Array String
 answers p = _.answer <$> p.clues
