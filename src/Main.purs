@@ -6,7 +6,8 @@ import Control.Lazy (defer)
 import Control.Monad.Eff (Eff)
 import DOM (DOM)
 import Data.Array as Arr
-import Data.Foldable (class Foldable, foldl, traverse_)
+import Data.Array (drop, length, take, uncons)
+import Data.Foldable (class Foldable, foldMap, traverse_)
 import Data.Group (ginverse)
 import Data.Int (ceil, toNumber)
 import Data.List as L
@@ -17,6 +18,7 @@ import Data.String.Regex (Regex, replace, test)
 import Data.String.Regex.Flags (global)
 import Data.String.Regex.Unsafe (unsafeRegex)
 import Data.Tuple (Tuple(..))
+import Data.Unfoldable (unfoldr)
 import Flare (UI, intSlider, resizableList, string, textarea)
 import Flare.Smolder (runFlareHTML)
 import Puzzle (Clue, Puzzle, answers, mkClue, mkPuzzle, source)
@@ -32,35 +34,59 @@ type Markup = M.Markup Unit
 countChars :: String -> MS.Multiset Char
 countChars s = MS.fromFoldable $ toCharArray $ replace notLetters "" $ toUpper s
 
+re :: String -> Regex
+re s = unsafeRegex s global
+
 punctuationStr :: String
 punctuationStr = ",!@#$%^&*().:;-"
 
 punctuation :: Regex
-punctuation = unsafeRegex ("[" <> punctuationStr <> "]") global
+punctuation = re $ "[" <> punctuationStr <> "]"
 
 lettersStr :: String
 lettersStr = "A-Z"
 
 notLetters :: Regex
-notLetters = unsafeRegex ("[^" <> lettersStr <> "]") global
+notLetters = re $ "[^" <> lettersStr <> "]"
 
 notDisplayableChar :: Regex
-notDisplayableChar = unsafeRegex ("[^ " <> lettersStr <> punctuationStr <> "]") global
+notDisplayableChar = re $ "[^ " <> lettersStr <> punctuationStr <> "]"
 
 -- | Removes chars that shouldn't be displayed in the board.
 cleanQuote :: String -> String
 cleanQuote q = replace notDisplayableChar "" $ toUpper q
 
+-- | Arranges `xs` into rows of length `numCols` (the last row might
+-- | be shorter).
+reshape :: forall a. Int -> Array a -> Array (Array a)
+reshape numCols xs =
+  Arr.fromFoldable $ LL.takeWhile (\row -> length row > 0) $ chunk xs where
+    -- keep lazily taking `numCols` elements forever
+    chunk ys = LL.cons hd $ defer \_ -> chunk tl
+      where
+        hd = take numCols ys
+        tl = drop numCols ys
+
+
+-- | Pairs each letter with its index (1-indexed).
+indexChars :: Array Char -> Array (Tuple Int Char)
+indexChars chars =
+  unfoldr step $ Tuple 1 chars where
+    step (Tuple i xs) = f <$> uncons xs where
+      f { head, tail } = Tuple (Tuple i head) (Tuple newI tail) where
+        -- only increment `i` if `head` is a letter
+        newI = if test notLetters (singleton head) then i else i + 1
+
+
 -- | Arranges `quote` into `numRows` roughly equal rows (the last row might
 -- | be shorter).
 formatQuote :: String -> Int -> Array (Array (Tuple Int Char))
 formatQuote quote numRows =
-  Arr.fromFoldable $ LL.take numRows $ rows (Arr.mapWithIndex Tuple chars)
-  where
+  let
     chars = toCharArray $ cleanQuote quote
-    numCols = ceil $ (toNumber $ Arr.length chars) / (toNumber numRows)
-    rows cs = LL.cons (Arr.take numCols cs) (defer \_ ->
-                                              rows $ Arr.drop numCols cs)
+    numCols = ceil $ (toNumber $ length chars) / (toNumber numRows)
+  in
+    reshape numCols $ indexChars chars
 
 -- | Counts chars in `quote` that haven't been used yet in `clues`
 lettersRemaining :: forall t. Functor t => Foldable t =>
@@ -68,7 +94,7 @@ lettersRemaining :: forall t. Functor t => Foldable t =>
                     t String ->
                     MS.Multiset Char
 lettersRemaining quote clues =
-  foldl (<>) (countChars quote) ((ginverse <<< countChars) <$> clues)
+  countChars quote <> ginverse (foldMap countChars clues)
 
 
 renderCharCount :: MS.Multiset Char -> Markup
@@ -79,11 +105,12 @@ renderCharCount cs =
             td $ M.text $ show i where
               td = if i < 0 then H.td ! A.className "err" else H.td
 
+
 -- | Renders a single char in the board.
-cell :: Tuple Int Char -> Markup
-cell (Tuple i c) =
+renderCell :: Tuple Int Char -> Markup
+renderCell (Tuple i c) =
   td $ do
-    H.div ! A.className "idx" $ M.text $ show (i + 1)
+    H.div ! A.className "idx" $ M.text $ show i
     H.div ! A.className "letter" $ M.text $ singleton c
     where td =
             if c == ' ' then
@@ -93,11 +120,13 @@ cell (Tuple i c) =
             else
                H.td
 
+
 -- | Renders the board.
 renderBoard :: String -> Int -> Markup
 renderBoard quote numRows =
-  H.table $ traverse_ row $ formatQuote quote numRows
-    where row chars = H.tr $ traverse_ cell chars
+  H.table $ traverse_ renderRow $ formatQuote quote numRows where
+    renderRow chars =
+      H.tr $ traverse_ renderCell chars
 
 
 renderPuzzle :: Puzzle -> Markup
@@ -152,5 +181,4 @@ acr = renderPuzzle <$> puzzleUi defaultPuzzle where
 
 
 main ∷ forall e. Eff (dom :: DOM, channel :: CHANNEL | e) Unit
-main = do
-  runFlareHTML "controls" "board" acr
+main = runFlareHTML "controls" "board" acr
