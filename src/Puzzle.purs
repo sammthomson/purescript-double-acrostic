@@ -11,7 +11,7 @@ module Puzzle (
   mkPuzzle,
   source,
   toJson
-  ) where
+) where
 
 import Prelude
 

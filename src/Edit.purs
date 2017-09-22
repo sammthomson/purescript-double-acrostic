@@ -1,12 +1,16 @@
-module Main where
+module Edit (
+  Html,
+  main,
+  renderBoard
+) where
 
 import Prelude (($), (<$>), (<*>), (<>), (>=), (>), (+), Unit, discard, show)
 
 import Control.Lazy (defer)
 import Control.Monad.Eff (Eff)
 import DOM (DOM)
-import Data.Array as Arr
 import Data.Array (drop, length, take, uncons)
+import Data.Array as Arr
 import Data.Foldable (traverse_)
 import Data.List as L
 import Data.List.Lazy as LL
@@ -16,21 +20,22 @@ import Data.Tuple (Tuple(..))
 import Data.Unfoldable (unfoldr)
 import Flare (UI, intSlider, resizableList, string, textarea)
 import Flare.Smolder (runFlareHTML)
-import Puzzle (CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle,
-               lettersRemaining, mkClue, mkPuzzle, source)
+import Puzzle (CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source)
 import Signal.Channel (CHANNEL)
 import Text.Smolder.HTML (div, label, span, table, td, tr)
 import Text.Smolder.HTML.Attributes (className, for, id)
 import Text.Smolder.Markup (Markup, (!), text)
 
 
--- | HTML without any event handlers
-type PureMarkup = Markup Unit
+-- | HTML with any event handlers (or none)
+type Html = forall e. Markup e
 
+-- | A UI with any effects during setup (or none)
+type Ui a = forall e. UI e a
 
 -- | Renders a table with how many of each letter remain,
 -- | with overused letters in red.
-renderLetterCount :: MS.Multiset Char -> PureMarkup
+renderLetterCount :: MS.Multiset Char -> Html
 renderLetterCount cs =
   table $ traverse_ renderChar $ MS.entryList cs where
     renderChar (Tuple c i) =
@@ -73,7 +78,7 @@ indexChars chars =
 
 
 -- | Renders a single char and its index into the board.
-renderCell :: Cell -> PureMarkup
+renderCell :: Cell -> Html
 renderCell (LetterCell i c) =
   td $ do
     div ! className "idx" $ text $ show i
@@ -87,7 +92,7 @@ renderCell (SpaceCell) =
 
 
 -- | Renders the board.
-renderBoard :: String -> Int -> PureMarkup
+renderBoard :: String -> Int -> Html
 renderBoard quote numCols =
   table $ traverse_ renderRow formattedQuote where
     renderRow row = tr $ traverse_ renderCell row
@@ -95,7 +100,7 @@ renderBoard quote numCols =
 
 
 -- | Renders the board, source, and table of remaining letters.
-renderPuzzle :: Puzzle -> PureMarkup
+renderPuzzle :: Puzzle -> Html
 renderPuzzle p = do
   div $
     (renderBoard p.quote p.numCols) ! id "board"
@@ -108,18 +113,18 @@ renderPuzzle p = do
 
 
 -- | UI for a single clue
-clueUi :: forall e. Clue -> UI e Clue
+clueUi :: Clue -> Ui Clue
 clueUi clue = mkClue <$> string "Clue:" clue.clue
                      <*> string "Answer:" clue.answer
 
 -- | UI for a list of clues
-cluesUi :: forall e. L.List Clue -> UI e (L.List Clue)
+cluesUi :: L.List Clue -> Ui (L.List Clue)
 cluesUi clues = resizableList "Clues:" clueUi emptyClue clues where
   emptyClue = mkClue "" ""
 
 
 -- | UI for the entire puzzle
-puzzleUi :: forall e. Puzzle -> UI e Puzzle
+puzzleUi :: Puzzle -> Ui Puzzle
 puzzleUi p = mkPuzzle <$> textarea "Quote:" p.quote
                       <*> intSlider "Columns:" 1 20 p.numCols
                       <*> cluesUi (L.fromFoldable p.clues)

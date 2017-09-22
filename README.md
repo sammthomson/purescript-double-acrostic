@@ -9,6 +9,6 @@ Requires PureScript compiler version 0.11.6 or greater.
 
     bower install
 
-    pulp build -O --to main.js
+    pulp build -O -m Edit --to js/edit.js && pulp build -O -m Play --to js/play.js
 
-then open `index.html`
+then open `edit` or `play` in a browser.

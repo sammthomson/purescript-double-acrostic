@@ -18,7 +18,8 @@
     "purescript-simple-json": "^0.9.0",
     "purescript-console": "^3.0.0",
     "purescript-affjax": "^5.0.0",
-    "purescript-flare": "^4.0.0"
+    "purescript-flare": "^4.0.0",
+    "purescript-smolder-dom": "^2.0.0"
   },
   "authors": [
     {
