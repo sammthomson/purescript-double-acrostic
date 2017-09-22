@@ -1,7 +1,10 @@
 module Edit (
+  Cell(..),
   Html,
+  indexChars,
   main,
-  renderBoard
+  renderCell,
+  reshape
 ) where
 
 import Prelude (($), (<$>), (<*>), (<>), (>=), (>), (+), Unit, discard, show)
@@ -62,9 +65,9 @@ reshape numCols xs =
 
 
 -- | Pairs each letter with its index (1-indexed).
-indexChars :: Array CharType -> Array Cell
-indexChars chars =
-  unfoldr maybeStep $ Tuple 1 chars where
+indexChars :: String -> Array Cell
+indexChars quote =
+  unfoldr maybeStep $ Tuple 1 $ cleanQuote quote where
     maybeStep (Tuple i xs) = step <$> uncons xs where
       step { head, tail } = Tuple cell (Tuple newI tail) where
         cell = case head of
@@ -96,7 +99,7 @@ renderBoard :: String -> Int -> Html
 renderBoard quote numCols =
   table $ traverse_ renderRow formattedQuote where
     renderRow row = tr $ traverse_ renderCell row
-    formattedQuote = reshape numCols $ indexChars $ cleanQuote quote
+    formattedQuote = reshape numCols $ indexChars quote
 
 
 -- | Renders the board, source, and table of remaining letters.
