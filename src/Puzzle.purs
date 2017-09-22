@@ -58,7 +58,14 @@ source :: Puzzle -> String
 source p = acronym $ answers p
 
 
-
+-- | The types of `Char` that can go in a puzzle board.
+-- |  * A `Letter` must correspond to a letter in a clue.
+-- |     They rendered as black on white, and get an index.
+-- |     They are to be filled in by the player.
+-- |  * A `Punct` is rendered as white on black, and doesn't align to any clue.
+-- |     They are non-editable.
+-- |  * A `Space` is a black square, and doesn't align to any clue.
+-- |     They are non-editable.
 data CharType = Letter Char | Punct Char | Space
 
 

@@ -1,6 +1,6 @@
 module Main where
 
-import Prelude
+import Prelude (($), (<$>), (<*>), (<>), (>=), (>), (+), Unit, discard, show)
 
 import Control.Lazy (defer)
 import Control.Monad.Eff (Eff)
@@ -19,25 +19,25 @@ import Flare.Smolder (runFlareHTML)
 import Puzzle (CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle,
                lettersRemaining, mkClue, mkPuzzle, source)
 import Signal.Channel (CHANNEL)
-import Text.Smolder.HTML as H
-import Text.Smolder.HTML.Attributes as A
-import Text.Smolder.Markup ((!))
-import Text.Smolder.Markup as M
+import Text.Smolder.HTML (div, label, span, table, td, tr)
+import Text.Smolder.HTML.Attributes (className, for, id)
+import Text.Smolder.Markup (Markup, (!), text)
 
 
-type Markup = M.Markup Unit
+-- | HTML without any event handlers
+type PureMarkup = Markup Unit
 
 
 -- | Renders a table with how many of each letter remain,
 -- | with overused letters in red.
-renderLetterCount :: MS.Multiset Char -> Markup
+renderLetterCount :: MS.Multiset Char -> PureMarkup
 renderLetterCount cs =
-  H.table $ traverse_ renderChar $ MS.entryList cs where
+  table $ traverse_ renderChar $ MS.entryList cs where
     renderChar (Tuple c i) =
-      H.tr $ do
-        td $ M.text $ singleton c <> ":"
-        td $ M.text $ show i where
-          td = if i >= 0 then H.td else H.td ! A.className "err"
+      tr $ do
+        td' $ text $ singleton c <> ":"
+        td' $ text $ show i where
+          td' = if i >= 0 then td else td ! className "err"
 
 
 -- only letters get indices
@@ -73,48 +73,52 @@ indexChars chars =
 
 
 -- | Renders a single char and its index into the board.
-renderCell :: Cell -> Markup
+renderCell :: Cell -> PureMarkup
 renderCell (LetterCell i c) =
-  H.td $ do
-    H.div ! A.className "idx" $ M.text $ show i
-    H.div ! A.className "letter" $ M.text $ singleton c
+  td $ do
+    div ! className "idx" $ text $ show i
+    div ! className "letter" $ text $ singleton c
 renderCell (PunctCell c) =
-  H.td ! A.className "punct" $
-    H.div ! A.className "letter" $ M.text $ singleton c
+  td ! className "punct" $
+    div ! className "letter" $ text $ singleton c
 renderCell (SpaceCell) =
-  H.td ! A.className "blank" $
-    H.div ! A.className "letter" $ M.text $ ""
+  td ! className "blank" $
+    div ! className "letter" $ text $ ""
 
 
 -- | Renders the board.
-renderBoard :: String -> Int -> Markup
+renderBoard :: String -> Int -> PureMarkup
 renderBoard quote numCols =
-  H.table $ traverse_ renderRow formattedQuote where
-    renderRow row = H.tr $ traverse_ renderCell row
+  table $ traverse_ renderRow formattedQuote where
+    renderRow row = tr $ traverse_ renderCell row
     formattedQuote = reshape numCols $ indexChars $ cleanQuote quote
 
 
-renderPuzzle :: Puzzle -> Markup
+-- | Renders the board, source, and table of remaining letters.
+renderPuzzle :: Puzzle -> PureMarkup
 renderPuzzle p = do
-  H.div $
-    (renderBoard p.quote p.numCols) ! A.id "board"
-  H.div $ do
-    H.label ! A.for "author" $ M.text "Source:"
-    H.span ! A.id "author" $ M.text $ source p
-  H.div $ do
-    H.label ! A.for "chars-left" $ M.text "Letters remaining:"
-    (renderLetterCount $ lettersRemaining p) ! A.id "chars-left"
+  div $
+    (renderBoard p.quote p.numCols) ! id "board"
+  div $ do
+    label ! for "author" $ text "Source:"
+    span ! id "author" $ text $ source p
+  div $ do
+    label ! for "chars-left" $ text "Letters remaining:"
+    (renderLetterCount $ lettersRemaining p) ! id "chars-left"
 
 
+-- | UI for a single clue
 clueUi :: forall e. Clue -> UI e Clue
 clueUi clue = mkClue <$> string "Clue:" clue.clue
                      <*> string "Answer:" clue.answer
 
+-- | UI for a list of clues
 cluesUi :: forall e. L.List Clue -> UI e (L.List Clue)
 cluesUi clues = resizableList "Clues:" clueUi emptyClue clues where
   emptyClue = mkClue "" ""
 
 
+-- | UI for the entire puzzle
 puzzleUi :: forall e. Puzzle -> UI e Puzzle
 puzzleUi p = mkPuzzle <$> textarea "Quote:" p.quote
                       <*> intSlider "Columns:" 1 20 p.numCols
@@ -122,4 +126,5 @@ puzzleUi p = mkPuzzle <$> textarea "Quote:" p.quote
 
 
 main ∷ forall e. Eff (dom :: DOM, channel :: CHANNEL | e) Unit
-main = runFlareHTML "controls" "board" (renderPuzzle <$> puzzleUi defaultPuzzle)
+main = runFlareHTML "controls" "board" $
+        renderPuzzle <$> puzzleUi defaultPuzzle
