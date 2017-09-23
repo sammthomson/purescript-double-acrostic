@@ -9,20 +9,18 @@ import DOM.HTML.Types (htmlDocumentToNonElementParentNode)
 import DOM.HTML.Window (document)
 import DOM.Node.NonElementParentNode (getElementById)
 import DOM.Node.Types (Element, ElementId(ElementId))
-import Data.Array (length, mapMaybe, take, zip, (!!), (..))
+import Data.Array (length, mapMaybe, take, zip, zipWith, (!!), (..))
 import Data.Char (fromCharCode, toCharCode)
-import Data.Foldable (foldMap, foldl, for_, traverse_)
+import Data.Foldable (foldl, for_, sequence_, traverse_)
 import Data.List as L
 import Data.Map as M
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Newtype (class Newtype)
 import Data.String (singleton, toCharArray, toUpper)
 import Data.Tuple (Tuple(..), fst)
-import Prelude (class Eq, class Ord, class Show, Unit,
-                bind, const, discard, show,
-                ($), (<<<), (+), (<$>), (<*>), (<>), (>>=))
-import Text.Smolder.HTML (div, label, span, table, tr)
-import Text.Smolder.HTML.Attributes (for, id)
+import Prelude (class Eq, class Ord, class Show, Unit, bind, const, discard, show, ($), (<<<), (+), (<$>), (<*>), (<>), (>>=))
+import Text.Smolder.HTML (div, label, span, table, td, tr)
+import Text.Smolder.HTML.Attributes (id)
 import Text.Smolder.Markup (text, (!))
 import Text.Smolder.Renderer.DOM (render)
 
@@ -117,15 +115,23 @@ renderBoard b numCols =
     formattedQuote = reshape numCols b
 
 
+renderMaybeChar :: Maybe Char -> Html
+renderMaybeChar mc = td $ text $ singleton $ fromMaybe ' ' mc
+
+renderGuess :: String -> Array (Maybe Char) -> Html
+renderGuess clue guess =
+  div $ do
+    label $ text clue
+    span $ table $ tr $ traverse_ renderMaybeChar guess
+
 -- | Renders the board, source
 renderPuzzle :: PuzzleInProgress -> Html
 renderPuzzle p = do
   div $
     (renderBoard (board p) p.solution.numCols) ! id "board"
-  div $ do
-    label ! for "author" $ text "Source:"
-    span ! id "author" $ text $ src where
-      src = foldMap (\c -> singleton $ fromMaybe ' ' c) (source p)
+  div $ renderGuess "Source:" (source p)
+  div $
+    (sequence_ $ zipWith renderGuess (_.clue <$> p.solution.clues) p.guesses) ! id "guesses"
 
 
 -- | More convenient `getElementById`
