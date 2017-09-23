@@ -1,4 +1,4 @@
-module Edit (
+module Acrostic.Edit (
   Cell(..),
   Html,
   indexChars,
@@ -7,8 +7,7 @@ module Edit (
   reshape
 ) where
 
-import Prelude (($), (<$>), (<*>), (<>), (>=), (>), (+), Unit, discard, show)
-
+import Acrostic.Puzzle (CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source)
 import Control.Lazy (defer)
 import Control.Monad.Eff (Eff)
 import DOM (DOM)
@@ -23,7 +22,7 @@ import Data.Tuple (Tuple(..))
 import Data.Unfoldable (unfoldr)
 import Flare (UI, intSlider, resizableList, string, textarea)
 import Flare.Smolder (runFlareHTML)
-import Puzzle (CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source)
+import Prelude (class Show, Unit, discard, show, ($), (+), (<$>), (<*>), (<>), (>), (>=))
 import Signal.Channel (CHANNEL)
 import Text.Smolder.HTML (div, label, span, table, td, tr)
 import Text.Smolder.HTML.Attributes (className, for, id)
@@ -49,7 +48,7 @@ renderLetterCount cs =
 
 
 -- only letters get indices
-data Cell = LetterCell Int Char | PunctCell Char | SpaceCell
+data Cell i = LetterCell i Char | PunctCell Char | SpaceCell
 
 
 -- | Arranges `xs` into rows of length `numCols` (the last row might
@@ -65,7 +64,7 @@ reshape numCols xs =
 
 
 -- | Pairs each letter with its index (1-indexed).
-indexChars :: String -> Array Cell
+indexChars :: String -> Array (Cell Int)
 indexChars quote =
   unfoldr maybeStep $ Tuple 1 $ cleanQuote quote where
     maybeStep (Tuple i xs) = step <$> uncons xs where
@@ -81,7 +80,7 @@ indexChars quote =
 
 
 -- | Renders a single char and its index into the board.
-renderCell :: Cell -> Html
+renderCell :: forall i. Show i => Cell i -> Html
 renderCell (LetterCell i c) =
   td $ do
     div ! className "idx" $ text $ show i

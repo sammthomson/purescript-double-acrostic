@@ -1,4 +1,4 @@
-module Puzzle (
+module Acrostic.Puzzle (
   CharType(..),
   Clue(..),
   Puzzle(..),
@@ -13,8 +13,6 @@ module Puzzle (
   toJson
 ) where
 
-import Prelude
-
 import Control.Monad.Except (runExcept)
 import Data.Array (fromFoldable, mapMaybe)
 import Data.Either (Either)
@@ -27,6 +25,7 @@ import Data.String (singleton, take, toCharArray, toUpper)
 import Data.String.Regex (Regex, test)
 import Data.String.Regex.Flags (global)
 import Data.String.Regex.Unsafe (unsafeRegex)
+import Prelude
 import Simple.JSON (readJSON, writeJSON)
 
 

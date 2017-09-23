@@ -2,5 +2,5 @@
 set -ex
 
 bower install
-pulp build -O -m Edit --to js/edit.js
-pulp build -O -m Play --to js/play.js
+pulp build -O -m Acrostic.Edit --to js/edit.js
+pulp build -O -m Acrostic.Play --to js/play.js
