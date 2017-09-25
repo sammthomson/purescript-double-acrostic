@@ -1,7 +1,9 @@
 module Acrostic.Play where
 
 import Acrostic.Edit (Cell(..), Html, indexChars, renderCell, reshape)
-import Acrostic.Puzzle (Clue, Puzzle, answers, defaultPuzzle)
+import Acrostic.Puzzle (
+  BoardIdx(..), CharIdx(..), CharMap, Clue, ClueCharIdx(..), ClueIdx(..),
+  Puzzle, answers, defaultPuzzle)
 import Control.Monad.Eff (Eff)
 import DOM (DOM)
 import DOM.HTML (window)
@@ -10,15 +12,14 @@ import DOM.HTML.Window (document)
 import DOM.Node.NonElementParentNode (getElementById)
 import DOM.Node.Types (Element, ElementId(ElementId))
 import Data.Array (length, mapMaybe, take, zip, zipWith, (!!), (..))
-import Data.Char (fromCharCode, toCharCode)
 import Data.Foldable (foldl, for_, sequence_, traverse_)
 import Data.List as L
 import Data.Map as M
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.Newtype (class Newtype)
 import Data.String (singleton, toCharArray, toUpper)
 import Data.Tuple (Tuple(..), fst)
-import Prelude (class Eq, class Ord, class Show, Unit, bind, const, discard, show, ($), (<<<), (+), (<$>), (<*>), (<>), (>>=))
+import Prelude (
+  Unit, bind, const, discard, ($), (<$>), (<*>), (<<<), (<>), (>>=))
 import Text.Smolder.HTML (div, label, span, table, td, tr)
 import Text.Smolder.HTML.Attributes (id)
 import Text.Smolder.Markup (text, (!))
@@ -39,13 +40,6 @@ type PuzzleInProgress = {
 
 type Guess = Array (Maybe Char)
 
--- | A map from board index to clue char index
-type CharMap = M.Map Int ClueCharIdx
-
-data ClueCharIdx = ClueCharIdx ClueIdx Int  -- clue idx, char idx
-
-newtype ClueIdx = ClueIdx Int
-
 
 startPuzzle :: Puzzle -> PuzzleInProgress
 startPuzzle p = {
@@ -62,23 +56,27 @@ zipWithIndex :: forall a. Array a -> Array (Tuple Int a)
 zipWithIndex xs = zip (0..(length xs)) xs
 
 
-groupCharsByIdx :: Array String -> M.Map Char (L.List ClueCharIdx)
+groupCharsByIdx :: Array String -> M.Map Char (L.List (Tuple Int Int))
 groupCharsByIdx clues = foldl step M.empty flattened where
   idxd = zipWithIndex ((zipWithIndex <<< toCharArray <<< toUpper) <$> clues)
   flattened = idxd >>= \(Tuple i xs) -> Tuple <$> [i] <*> xs
   step acc (Tuple clueI (Tuple charI c)) =
     M.unionWith (<>) acc $ M.singleton c v where
-      v = L.singleton $ ClueCharIdx (ClueIdx clueI) charI
+      v = L.singleton $ Tuple clueI charI
 
 
+-- TODO: should this be randomized?
 mkCharMap :: Puzzle -> CharMap
 mkCharMap p = fst result where
   result = foldl step start (indexChars p.quote)
   start = Tuple M.empty (groupCharsByIdx (answers p))
-  step (Tuple cMap rem) (LetterCell i c)
+  step (Tuple cMap rem) (LetterCell (BoardIdx i) c)
+      -- these are pattern guards. this case of `step` only applies if they succeed
       | Just idxs <- M.lookup c rem,
-        Just { head, tail } <- L.uncons idxs =  -- TODO: this should be randomized
-    Tuple (M.insert i head cMap) (M.insert c tail rem)
+        Just { head: Tuple clueIdx charIdx, tail: tl } <- L.uncons idxs =
+    Tuple (M.insert boardIdx newAssoc cMap) (M.insert c tl rem) where
+      boardIdx = BoardIdx i
+      newAssoc = ClueCharIdx (ClueIdx clueIdx) (CharIdx charIdx) boardIdx
   step acc _ = acc
 
 
@@ -91,7 +89,7 @@ type CellInProgress = Cell ClueCharIdx
 type BoardInProgress = Array CellInProgress
 
 lookupChar :: ClueCharIdx -> PuzzleInProgress -> Maybe Char
-lookupChar (ClueCharIdx (ClueIdx clueIdx) charIdx) p = do
+lookupChar (ClueCharIdx (ClueIdx clueIdx) (CharIdx charIdx) _) p = do
   guess <- p.guesses !! clueIdx
   maybeChar <- guess !! charIdx
   maybeChar
@@ -124,12 +122,12 @@ renderGuess clue guess =
     label $ text clue
     span $ table $ tr $ traverse_ renderMaybeChar guess
 
--- | Renders the board, source
+-- | Renders the board, source, and clues
 renderPuzzle :: PuzzleInProgress -> Html
 renderPuzzle p = do
   div $
     (renderBoard (board p) p.solution.numCols) ! id "board"
-  div $ renderGuess "Source:" (source p)
+  div $ renderGuess "Source:" (source p) ! id "author"
   div $
     (sequence_ $ zipWith renderGuess (_.clue <$> p.solution.clues) p.guesses) ! id "guesses"
 
@@ -140,18 +138,3 @@ getElement name = do
   win <- window
   doc <- document win
   getElementById (ElementId name) (htmlDocumentToNonElementParentNode doc)
-
-
-derive instance newtypeClueIdx :: Newtype ClueIdx _
-derive instance eqClueIdx :: Eq ClueIdx
-derive instance ordClueIdx :: Ord ClueIdx
-
-instance showClueIdx :: Show ClueIdx where
-  show (ClueIdx i) = singleton $ fromCharCode $ toCharCode 'A' + i
-
-
-instance showClueCharIdx :: Show ClueCharIdx where
-  show (ClueCharIdx clueIdx charIdx) = show clueIdx <> " " <> show charIdx
-
-derive instance eqClueCharIdx :: Eq ClueCharIdx
-derive instance ordClueCharIdx :: Ord ClueCharIdx

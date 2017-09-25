@@ -7,7 +7,9 @@ module Acrostic.Edit (
   reshape
 ) where
 
-import Acrostic.Puzzle (CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source)
+import Acrostic.Puzzle (
+  BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle,
+  lettersRemaining, mkClue, mkPuzzle, source)
 import Control.Lazy (defer)
 import Control.Monad.Eff (Eff)
 import DOM (DOM)
@@ -22,7 +24,8 @@ import Data.Tuple (Tuple(..))
 import Data.Unfoldable (unfoldr)
 import Flare (UI, intSlider, resizableList, string, textarea)
 import Flare.Smolder (runFlareHTML)
-import Prelude (class Show, Unit, discard, show, ($), (+), (<$>), (<*>), (<>), (>), (>=))
+import Prelude (
+  class Show, Unit, discard, show, ($), (+), (<$>), (<*>), (<>), (>), (>=))
 import Signal.Channel (CHANNEL)
 import Text.Smolder.HTML (div, label, span, table, td, tr)
 import Text.Smolder.HTML.Attributes (className, for, id)
@@ -64,13 +67,13 @@ reshape numCols xs =
 
 
 -- | Pairs each letter with its index (1-indexed).
-indexChars :: String -> Array (Cell Int)
+indexChars :: String -> Array (Cell BoardIdx)
 indexChars quote =
-  unfoldr maybeStep $ Tuple 1 $ cleanQuote quote where
+  unfoldr maybeStep $ Tuple 0 $ cleanQuote quote where
     maybeStep (Tuple i xs) = step <$> uncons xs where
       step { head, tail } = Tuple cell (Tuple newI tail) where
         cell = case head of
-          Letter c -> LetterCell i c
+          Letter c -> LetterCell (BoardIdx i) c
           Punct c -> PunctCell c
           _ -> SpaceCell
         -- only increment `i` if `head` is a letter

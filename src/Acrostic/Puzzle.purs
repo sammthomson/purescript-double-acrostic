@@ -1,6 +1,11 @@
 module Acrostic.Puzzle (
+  BoardIdx(..),
+  CharIdx(..),
+  CharMap(..),
   CharType(..),
   Clue(..),
+  ClueCharIdx(..),
+  ClueIdx(..),
   Puzzle(..),
   answers,
   cleanQuote,
@@ -13,19 +18,23 @@ module Acrostic.Puzzle (
   toJson
 ) where
 
+import Prelude
+
 import Control.Monad.Except (runExcept)
 import Data.Array (fromFoldable, mapMaybe)
+import Data.Char (fromCharCode, toCharCode)
 import Data.Either (Either)
 import Data.Foldable (class Foldable, foldMap)
 import Data.Foreign (MultipleErrors)
 import Data.Group (ginverse)
+import Data.Map as M
 import Data.Maybe (Maybe(..))
 import Data.Multiset as MS
+import Data.Newtype (class Newtype)
 import Data.String (singleton, take, toCharArray, toUpper)
 import Data.String.Regex (Regex, test)
 import Data.String.Regex.Flags (global)
 import Data.String.Regex.Unsafe (unsafeRegex)
-import Prelude
 import Simple.JSON (readJSON, writeJSON)
 
 
@@ -67,6 +76,15 @@ source p = acronym $ answers p
 -- |     They are non-editable.
 data CharType = Letter Char | Punct Char | Space
 
+newtype ClueIdx = ClueIdx Int
+newtype CharIdx = CharIdx Int
+newtype BoardIdx = BoardIdx Int
+
+data ClueCharIdx = ClueCharIdx ClueIdx CharIdx BoardIdx
+
+-- | An association of board char indices to clue char indices
+type CharMap = M.Map BoardIdx ClueCharIdx
+
 
 re :: String -> Regex
 re s = unsafeRegex s global
@@ -98,12 +116,34 @@ lettersRemaining :: Puzzle -> MS.Multiset Char
 lettersRemaining p =
   countLetters p.quote <> ginverse (foldMap countLetters $ answers p)
 
-
 toJson :: Puzzle -> String
 toJson = writeJSON
 
 fromJson :: String -> Either MultipleErrors Puzzle
 fromJson json = runExcept $ readJSON json
+
+-- | Clues are indexed by letters starting at 'A'
+instance showClueIdx :: Show ClueIdx where
+  show (ClueIdx i) = singleton $ fromCharCode $ toCharCode 'A' + i
+
+-- | pretend they're 1-indexed
+instance showBoardIdx :: Show BoardIdx where
+  show (BoardIdx i) = show (i + 1)
+
+instance showClueCharIdx :: Show ClueCharIdx where
+  show (ClueCharIdx clueIdx _ (BoardIdx boardIdx)) =
+    show clueIdx <> " " <> show (boardIdx + 1)
+
+derive instance newtypeClueIdx :: Newtype ClueIdx _
+derive instance eqClueIdx :: Eq ClueIdx
+derive instance ordClueIdx :: Ord ClueIdx
+derive instance newtypeCharIdx :: Newtype CharIdx _
+derive instance eqCharIdx :: Eq CharIdx
+derive instance ordCharIdx :: Ord CharIdx
+derive instance newtypeBoardIdx :: Newtype BoardIdx _
+derive instance eqBoardIdx :: Eq BoardIdx
+derive instance ordBoardIdx :: Ord BoardIdx
+derive instance eqClueCharIdx :: Eq ClueCharIdx
 
 defaultPuzzle :: Puzzle
 defaultPuzzle = {
