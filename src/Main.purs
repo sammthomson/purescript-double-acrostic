@@ -20,13 +20,16 @@ import Data.String.Regex.Unsafe (unsafeRegex)
 import Data.Tuple (Tuple(..))
 import Flare (UI, intSlider, resizableList, string, textarea)
 import Flare.Smolder (runFlareHTML)
-import Puzzle (Clue(..), Puzzle(..), answers, mkClue, mkPuzzle, source)
+import Puzzle (Clue(..), Puzzle(..), answers, mkClue, mkPuzzle, source, fromJson)
 import Signal.Channel (CHANNEL)
 import Text.Smolder.HTML as H
 import Text.Smolder.HTML.Attributes as A
 import Text.Smolder.Markup ((!))
 import Text.Smolder.Markup as M
-
+import Control.Monad.Eff.Console (log)
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Aff (launchAff)
+import Network.HTTP.Affjax (get)
 
 type Markup = M.Markup Unit
 
@@ -128,6 +131,10 @@ cluesUi :: forall e. L.List Clue -> UI e (L.List Clue)
 cluesUi clues = resizableList "Clues:" clueUi emptyClue clues where
   emptyClue = mkClue "" ""
 
+loadedPuzzle :: Puzzle
+loadedPuzzle = launchAff $ do
+  res1 <- get "https://api.github.com/gists/465fe1d3b233f8332590f946c071e2be"
+  fromJson res1.response
 
 puzzleUi :: forall e. Puzzle -> UI e Puzzle
 puzzleUi (Puzzle p) = mkPuzzle <$> textarea "Quote:" p.quote
