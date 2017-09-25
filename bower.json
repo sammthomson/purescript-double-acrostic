@@ -11,15 +11,15 @@
   ],
   "dependencies": {
     "purescript-prelude": "^3.1.0",
-    "purescript-lists": "^4.9.0",
+    "purescript-lists": "^4.10.0",
     "purescript-sets": "^3.0.0",
     "purescript-maps": "^3.3.1",
     "purescript-group": "^3.1.0",
-    "purescript-foreign-generic": "^4.2.0",
+    "purescript-simple-json": "^0.9.0",
     "purescript-console": "^3.0.0",
-    "purescript-node-fs-aff": "^4.0.0",
-    "purescript-flare": "sammthomson/purescript-flare#d814fc5b53ba83eb3ecf3b2c6c375ba23e504367",
-    "purescript-affjax": "^4.0.0"
+    "purescript-affjax": "^4.0.0",
+    "purescript-flare": "^4.0.0",
+    "purescript-smolder-dom": "^2.0.0"
   },
   "authors": [
     {
@@ -33,6 +33,6 @@
   "devDependencies": {
     "purescript-assert": "^3.0.0",
     "purescript-psci-support": "^3.0.0",
-	"purescript-quickcheck": "^4.4.0"
+    "purescript-quickcheck": "^4.4.0"
   }
 }
