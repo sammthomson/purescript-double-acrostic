@@ -5,6 +5,7 @@ module Acrostic.Puzzle (
   CharType(..),
   Clue(..),
   ClueCharIdx(..),
+  ClueCharBoardIdx(..),
   ClueIdx(..),
   Puzzle(..),
   answers,
@@ -22,12 +23,12 @@ import Prelude
 
 import Control.Monad.Except (runExcept)
 import Data.Array (fromFoldable, mapMaybe)
+import Data.Bimap (Bimap)
 import Data.Char (fromCharCode, toCharCode)
 import Data.Either (Either)
 import Data.Foldable (class Foldable, foldMap)
 import Data.Foreign (MultipleErrors)
 import Data.Group (ginverse)
-import Data.Map as M
 import Data.Maybe (Maybe(..))
 import Data.Multiset as MS
 import Data.Newtype (class Newtype)
@@ -76,14 +77,16 @@ source p = acronym $ answers p
 -- |     They are non-editable.
 data CharType = Letter Char | Punct Char | Space
 
+
 newtype ClueIdx = ClueIdx Int
 newtype CharIdx = CharIdx Int
 newtype BoardIdx = BoardIdx Int
+data ClueCharIdx = ClueCharIdx ClueIdx CharIdx
 
-data ClueCharIdx = ClueCharIdx ClueIdx CharIdx BoardIdx
+data ClueCharBoardIdx = ClueCharBoardIdx ClueCharIdx BoardIdx
 
 -- | An association of board char indices to clue char indices
-type CharMap = M.Map BoardIdx ClueCharIdx
+type CharMap = Bimap BoardIdx ClueCharIdx
 
 
 re :: String -> Regex
@@ -130,9 +133,9 @@ instance showClueIdx :: Show ClueIdx where
 instance showBoardIdx :: Show BoardIdx where
   show (BoardIdx i) = show (i + 1)
 
-instance showClueCharIdx :: Show ClueCharIdx where
-  show (ClueCharIdx clueIdx _ (BoardIdx boardIdx)) =
-    show clueIdx <> " " <> show (boardIdx + 1)
+instance showClueCharBoardIdx :: Show ClueCharBoardIdx where
+  show (ClueCharBoardIdx (ClueCharIdx clueIdx _) boardIdx) =
+    show clueIdx <> " " <> show boardIdx
 
 derive instance newtypeClueIdx :: Newtype ClueIdx _
 derive instance eqClueIdx :: Eq ClueIdx
@@ -144,6 +147,9 @@ derive instance newtypeBoardIdx :: Newtype BoardIdx _
 derive instance eqBoardIdx :: Eq BoardIdx
 derive instance ordBoardIdx :: Ord BoardIdx
 derive instance eqClueCharIdx :: Eq ClueCharIdx
+derive instance ordClueCharIdx :: Ord ClueCharIdx
+derive instance eqClueCharBoardIdx :: Eq ClueCharBoardIdx
+derive instance ordClueCharBoardIdx :: Ord ClueCharBoardIdx
 
 defaultPuzzle :: Puzzle
 defaultPuzzle = {
