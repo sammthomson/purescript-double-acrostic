@@ -22,7 +22,7 @@ import Data.Tuple (Tuple(..), fst)
 import Prelude (
   Unit, bind, const, discard, join, pure, ($), (<$>), (<#>), (<<<), (<>))
 import Text.Smolder.HTML (div, label, span, table, tr)
-import Text.Smolder.HTML.Attributes (id)
+import Text.Smolder.HTML.Attributes (id, for)
 import Text.Smolder.Markup (text, (!))
 import Text.Smolder.Renderer.DOM (render)
 
@@ -151,9 +151,12 @@ renderGuess clue guess =
 -- | Renders the board, source, and clues
 renderPuzzle :: PuzzleInProgress -> Html
 renderPuzzle p = do
+  div $ do
+    label ! for "puzzle-title" $ text "Title:"
+    span ! id "puzzle-title" $ text $ p.solution.title
   div $
     (renderBoard (board p) p.solution.numCols) ! id "board"
-  div $ renderGuess "source:" (sourceGuess p) ! id "author"
+  div $ renderGuess "Source:" (sourceGuess p) ! id "author"
   div $ do
     let clues = _.clue <$> p.solution.clues
     (sequence_ $ zipWith renderGuess clues (indexedGuesses p)) ! id "guesses"

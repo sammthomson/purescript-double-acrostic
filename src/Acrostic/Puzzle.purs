@@ -45,6 +45,7 @@ type Clue = {
 }
 
 type Puzzle = {
+  title :: String,
   quote :: String,
   numCols :: Int,
   clues :: Array Clue
@@ -53,8 +54,9 @@ type Puzzle = {
 mkClue :: String -> String -> Clue
 mkClue c a = { clue: c, answer: a }
 
-mkPuzzle :: forall t. Foldable t => String -> Int -> t Clue -> Puzzle
-mkPuzzle q cols c = { quote: q, numCols: cols, clues: fromFoldable c }
+mkPuzzle :: forall t. Foldable t => String -> String -> Int -> t Clue -> Puzzle
+mkPuzzle t q cols c =
+  { title: t, quote: q, numCols: cols, clues: fromFoldable c }
 
 answers :: Puzzle -> Array String
 answers p = _.answer <$> p.clues
@@ -153,6 +155,7 @@ derive instance ordClueCharBoardIdx :: Ord ClueCharBoardIdx
 
 defaultPuzzle :: Puzzle
 defaultPuzzle = {
+  title: "...and bears.",
   quote: "The only thing we have to fear is fear itself.",
   numCols: 12,
   clues: [

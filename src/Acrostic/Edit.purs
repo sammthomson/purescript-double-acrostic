@@ -130,7 +130,8 @@ cluesUi clues = resizableList "Clues:" clueUi emptyClue clues where
 
 -- | UI for the entire puzzle
 puzzleUi :: Puzzle -> Ui Puzzle
-puzzleUi p = mkPuzzle <$> textarea "Quote:" p.quote
+puzzleUi p = mkPuzzle <$> string "Title:" p.title
+                      <*> textarea "Quote:" p.quote
                       <*> intSlider "Columns:" 1 20 p.numCols
                       <*> cluesUi (L.fromFoldable p.clues)
 
