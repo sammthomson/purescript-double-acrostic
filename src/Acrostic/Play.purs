@@ -21,7 +21,7 @@ import Data.String (toCharArray, toUpper)
 import Data.Tuple (Tuple(..), fst)
 import Prelude (
   Unit, bind, const, discard, join, pure, ($), (<$>), (<#>), (<<<), (<>))
-import Text.Smolder.HTML (div, label, span, table, tr)
+import Text.Smolder.HTML (div, fieldset, label, legend, span, table, tr)
 import Text.Smolder.HTML.Attributes (id, for)
 import Text.Smolder.Markup (text, (!))
 import Text.Smolder.Renderer.DOM (render)
@@ -139,27 +139,29 @@ renderBoard b numCols =
     formattedQuote = reshape numCols b
 
 
-renderMaybeChar :: Tuple ClueCharBoardIdx (Maybe Char) -> Html
-renderMaybeChar (Tuple i mc) = renderCell $ LetterCell i $ fromMaybe ' ' mc
-
-renderGuess :: String -> Array (Tuple ClueCharBoardIdx (Maybe Char)) -> Html
-renderGuess clue guess =
-  div $ do
-    label $ text clue
-    span $ table $ tr $ traverse_ renderMaybeChar guess
-
 -- | Renders the board, source, and clues
 renderPuzzle :: PuzzleInProgress -> Html
-renderPuzzle p = do
-  div $ do
-    label ! for "puzzle-title" $ text "Title:"
-    span ! id "puzzle-title" $ text $ p.solution.title
-  div $
-    (renderBoard (board p) p.solution.numCols) ! id "board"
-  div $ renderGuess "Source:" (sourceGuess p) ! id "author"
-  div $ do
-    let clues = _.clue <$> p.solution.clues
-    (sequence_ $ zipWith renderGuess clues (indexedGuesses p)) ! id "guesses"
+renderPuzzle p =
+  let
+    renderClueAndGuess clue guess = div $ do
+      span $ text clue
+      renderGuess guess
+    renderGuess guess = span $ table $ tr $ traverse_ renderMaybeChar guess
+    renderMaybeChar (Tuple i mc) = renderCell $ LetterCell i $ fromMaybe ' ' mc
+  in
+    do
+      div $ do
+        label ! for "puzzle-title" $ text "Title:"
+        span ! id "puzzle-title" $ text $ p.solution.title
+      div $
+        (renderBoard (board p) p.solution.numCols) ! id "board"
+      div $ do
+        label ! for "author" $ text "Source:"
+        renderGuess (sourceGuess p) ! id "author"
+      fieldset ! id "guesses" $ do
+        let clues = _.clue <$> p.solution.clues
+        legend $ text "Clues:"
+        (sequence_ $ zipWith renderClueAndGuess clues (indexedGuesses p))
 
 
 -- | More convenient `getElementById`
