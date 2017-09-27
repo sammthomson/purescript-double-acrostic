@@ -6,6 +6,9 @@
     <link href="css/main.css" rel="stylesheet">
   </head>
   <body>
+    <div id="controls-container">
+      <div id="controls"></div>
+    </div>
     <div id="content">
       <div id="board-container">
         <div id="board"></div>

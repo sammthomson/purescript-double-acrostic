@@ -12,6 +12,10 @@
   margin-bottom: 10px;
 }
 
+.flare-input-textarea {
+  width: 350px;
+}
+
 label {
   font-weight: bold;
   margin-right: 10px;
@@ -26,8 +30,8 @@ table, th, td {
 }
 
 td {
-  width: 20px;
-  height: 20px;
+  width: 23px;
+  height: 31px;
 }
 
 td.blank {
@@ -44,10 +48,12 @@ td.err {
 }
 
 td div.idx {
+  height: 13px;
   font-size: x-small;
 }
 
 td div.letter {
+  height: 18px;
   text-align: center;
 }
 
