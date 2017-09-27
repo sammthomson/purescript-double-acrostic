@@ -3,7 +3,7 @@ module Acrostic.Play where
 import Acrostic.Edit (Cell(..), Html, indexChars, renderCell, reshape)
 import Acrostic.Puzzle (
   BoardIdx(..), CharIdx(..), CharMap, Clue, ClueCharBoardIdx(..),
-  ClueCharIdx(..), ClueIdx(..), Puzzle, answers, defaultPuzzle)
+  ClueCharIdx(..), ClueIdx(..), Puzzle, answers, clues, defaultPuzzle)
 import Control.Monad.Eff (Eff)
 import DOM (DOM)
 import DOM.HTML (window)
@@ -13,24 +13,27 @@ import DOM.Node.NonElementParentNode (getElementById)
 import DOM.Node.Types (Element, ElementId(ElementId))
 import Data.Array (head, length, mapMaybe, zip, zipWith, (!!), (..))
 import Data.Bimap as B
-import Data.Foldable (foldl, for_, sequence_, traverse_)
+import Data.Foldable (foldl, traverse_)
 import Data.List as L
 import Data.Map as M
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (toCharArray, toUpper)
-import Data.Tuple (Tuple(..), fst)
+import Data.Traversable (traverse)
+import Data.Tuple (Tuple(..), fst, snd)
+import Flare (fieldset)
+import Flare.Custom (Ui, upperChar, rowUi)
+import Flare.Smolder (runFlareHTML)
 import Prelude (
-  Unit, bind, const, discard, join, pure, ($), (<$>), (<#>), (<<<), (<>))
-import Text.Smolder.HTML (div, fieldset, label, legend, span, table, tr)
+  Unit, bind, const, discard, join, map, show, ($), (<#>), (<$>), (<<<), (<>))
+import Signal.Channel (CHANNEL)
+import Text.Smolder.HTML (div, label, span, table, tr)
 import Text.Smolder.HTML.Attributes (id, for)
 import Text.Smolder.Markup (text, (!))
-import Text.Smolder.Renderer.DOM (render)
 
 
-main ∷ forall e. Eff (dom :: DOM | e) Unit
-main = do
-  boardEl <- getElement "board"
-  for_ boardEl \b -> render b (renderPuzzle $ startPuzzle defaultPuzzle)
+main :: forall e. Eff (dom :: DOM, channel :: CHANNEL | e) Unit
+main = runFlareHTML "controls" "board" $
+        renderPuzzle <$> puzzleUi (startPuzzle defaultPuzzle)
 
 
 type PuzzleInProgress = {
@@ -40,7 +43,6 @@ type PuzzleInProgress = {
 }
 
 type Guess = Array (Maybe Char)
-
 
 startPuzzle :: Puzzle -> PuzzleInProgress
 startPuzzle p = {
@@ -52,41 +54,43 @@ startPuzzle p = {
 startGuess :: Clue -> Guess
 startGuess c = const Nothing <$> toCharArray c.answer
 
-
-indices :: forall a. Array a -> Array Int
-indices xs = 0..(length xs)
-
-zipWithIndex :: forall a. Array a -> Array (Tuple Int a)
-zipWithIndex xs = zip (indices xs) xs
-
+ -- We'll be annotating all of these chars with both where they live in the
+ -- clue guesses and where they live in the board.
+type IdxdChar = Tuple ClueCharBoardIdx (Maybe Char)
+type IdxdGuess = Array IdxdChar
+data IdxdClueAndGuess = IdxdClueAndGuess ClueIdx String IdxdGuess
 
 indexClueChars :: forall a.
                 Array (Array a) ->
                 Array (Array (Tuple ClueCharIdx a))
 indexClueChars guesses =
   let
-    idxd = zipWithIndex (zipWithIndex <$> guesses)
+    charIdxd = zipWithIndex <$> guesses
+    clueIdxd = zipWithIndex charIdxd
   in
-    idxd <#> \(Tuple clueIdx guess) ->
+    clueIdxd <#> \(Tuple clueIdx guess) ->
       guess <#> \(Tuple charIdx char) ->
         Tuple (ClueCharIdx (ClueIdx clueIdx) (CharIdx charIdx)) char
 
-indexedGuesses :: PuzzleInProgress ->
-                  Array (Array (Tuple ClueCharBoardIdx (Maybe Char)))
-indexedGuesses p = mapMaybe addBoardIdx <$> indexClueChars p.guesses where
+indexedGuesses :: PuzzleInProgress -> Array IdxdClueAndGuess
+indexedGuesses p = f <$> (zipWithIndex $ zip (clues p.solution) idxdGuesses) where
+  f (Tuple clueIdx (Tuple clue guess)) = IdxdClueAndGuess (ClueIdx clueIdx) clue guess
+  idxdGuesses :: Array IdxdGuess
+  idxdGuesses = mapMaybe addBoardIdx <$> indexClueChars p.guesses
   invCharMap = B.invert p.charMap
   addBoardIdx (Tuple cci c) = do
     boardIdx <- B.lookup cci invCharMap
     Just $ Tuple (ClueCharBoardIdx cci boardIdx) c
 
+-- | Builds a map from char to a list of indices where it appears in clue
+-- | guesses.
 groupCharsByIdx :: Array String -> M.Map Char (L.List ClueCharIdx)
 groupCharsByIdx clues = foldl step M.empty idxd where
   idxd = join $ indexClueChars ((toCharArray <<< toUpper) <$> clues)
   step acc (Tuple cci c) =
     M.unionWith (<>) acc $ M.singleton c (L.singleton cci)
 
-
--- TODO: should this be randomized?
+-- | Builds a bimap from clue char indices to board indices.
 mkCharMap :: Puzzle -> CharMap
 mkCharMap p = fst result where
   result = foldl step start (indexChars p.quote)
@@ -100,13 +104,10 @@ mkCharMap p = fst result where
   step acc _ = acc
 
 
-sourceGuess :: PuzzleInProgress -> Array (Tuple ClueCharBoardIdx (Maybe Char))
-sourceGuess p = do
-  let invCharMap = B.invert p.charMap
-  Tuple i guess <- zipWithIndex p.guesses
-  let clueCharIdx = ClueCharIdx (ClueIdx i) (CharIdx 0)
-  let boardIdx = fromMaybe (BoardIdx 0) $ B.lookup clueCharIdx invCharMap
-  pure $ Tuple (ClueCharBoardIdx clueCharIdx boardIdx) (join $ head guess)
+-- | Anagram of the clue guesses
+sourceGuess :: PuzzleInProgress -> IdxdGuess
+sourceGuess p =
+  mapMaybe (\(IdxdClueAndGuess _ _ guess) -> head guess) (indexedGuesses p)
 
 
 type CellInProgress = Cell ClueCharBoardIdx
@@ -116,8 +117,8 @@ type BoardInProgress = Array CellInProgress
 lookupChar :: ClueCharIdx -> PuzzleInProgress -> Maybe Char
 lookupChar (ClueCharIdx (ClueIdx clueIdx) (CharIdx charIdx)) p = do
   guess <- p.guesses !! clueIdx
-  maybeChar <- guess !! charIdx
-  maybeChar
+  mc <- guess !! charIdx
+  mc
 
 
 board :: PuzzleInProgress -> BoardInProgress
@@ -139,14 +140,23 @@ renderBoard b numCols =
     formattedQuote = reshape numCols b
 
 
+idxdCharUi :: IdxdChar -> Ui IdxdChar
+idxdCharUi (Tuple idx mc) = Tuple idx <$> upperChar (show idx) mc
+
+guessUi :: IdxdClueAndGuess -> Ui Guess
+guessUi (IdxdClueAndGuess clueIdx clue guess) =
+  fieldset title $ (map snd <$> rowUi idxdCharUi guess) where
+    title = show clueIdx <> ". " <> clue
+
+puzzleUi :: PuzzleInProgress -> Ui PuzzleInProgress
+puzzleUi p = setGuesses <$> guessesUi (indexedGuesses p) where
+  guessesUi = traverse guessUi
+  setGuesses gs = p { guesses = gs }
+
 -- | Renders the board, source, and clues
 renderPuzzle :: PuzzleInProgress -> Html
-renderPuzzle p =
-  let
-    renderClueAndGuess clue guess = div $ do
-      span $ text clue
-      renderGuess guess
-    renderGuess guess = span $ table $ tr $ traverse_ renderMaybeChar guess
+renderPuzzle p = let
+    renderSource guess = span $ table $ tr $ traverse_ renderMaybeChar guess
     renderMaybeChar (Tuple i mc) = renderCell $ LetterCell i $ fromMaybe ' ' mc
   in
     do
@@ -157,12 +167,14 @@ renderPuzzle p =
         (renderBoard (board p) p.solution.numCols) ! id "board"
       div $ do
         label ! for "author" $ text "Source:"
-        renderGuess (sourceGuess p) ! id "author"
-      fieldset ! id "guesses" $ do
-        let clues = _.clue <$> p.solution.clues
-        legend $ text "Clues:"
-        (sequence_ $ zipWith renderClueAndGuess clues (indexedGuesses p))
+        renderSource (sourceGuess p) ! id "author"
 
+-- utils --
+indices :: forall a. Array a -> Array Int
+indices xs = 0..(length xs)
+
+zipWithIndex :: forall a. Array a -> Array (Tuple Int a)
+zipWithIndex xs = zipWith Tuple (indices xs) xs
 
 -- | More convenient `getElementById`
 getElement :: forall e. String -> Eff (dom :: DOM | e) (Maybe Element)

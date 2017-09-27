@@ -22,7 +22,8 @@ import Data.Multiset as MS
 import Data.String (singleton)
 import Data.Tuple (Tuple(..))
 import Data.Unfoldable (unfoldr)
-import Flare (UI, intSlider, resizableList, string, textarea)
+import Flare (intSlider, resizableList, string, textarea)
+import Flare.Custom (Ui)
 import Flare.Smolder (runFlareHTML)
 import Prelude (
   class Show, Unit, discard, show, ($), (+), (<$>), (<*>), (<>), (>), (>=))
@@ -35,8 +36,6 @@ import Text.Smolder.Markup (Markup, (!), text)
 -- | HTML with any event handlers (or none)
 type Html = forall e. Markup e
 
--- | A UI with any effects during setup (or none)
-type Ui a = forall e. UI e a
 
 -- | Renders a table with how many of each letter remain,
 -- | with overused letters in red.

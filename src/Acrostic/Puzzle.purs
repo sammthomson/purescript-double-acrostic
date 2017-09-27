@@ -10,6 +10,7 @@ module Acrostic.Puzzle (
   Puzzle(..),
   answers,
   cleanQuote,
+  clues,
   defaultPuzzle,
   fromJson,
   lettersRemaining,
@@ -58,8 +59,11 @@ mkPuzzle :: forall t. Foldable t => String -> String -> Int -> t Clue -> Puzzle
 mkPuzzle t q cols c =
   { title: t, quote: q, numCols: cols, clues: fromFoldable c }
 
+clues :: Puzzle -> Array String
+clues p = _.clue <$> p.clues
+
 answers :: Puzzle -> Array String
-answers p = _.answer <$> p.clues
+answers p = (toUpper <<< _.answer) <$> p.clues
 
 acronym :: forall t. Foldable t => t String -> String
 acronym = foldMap (toUpper <<< take 1)
