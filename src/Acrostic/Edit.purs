@@ -7,24 +7,41 @@ module Acrostic.Edit (
   reshape
 ) where
 
-import Acrostic.Puzzle (CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source)
+import Prelude
+
+import Acrostic.Puzzle (CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, fromJson, lettersRemaining, mkClue, mkPuzzle, source)
 import Control.Lazy (defer)
+import Control.Monad.Aff (Canceler(..), launchAff)
+import Control.Monad.Aff.Class (liftAff)
 import Control.Monad.Eff (Eff)
+import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Eff.Console (log)
+import Control.Monad.Eff.Exception (EXCEPTION, throw)
+import Control.Monad.Error.Class (throwError)
 import DOM (DOM)
+import Data.Argonaut.Core (toString)
 import Data.Array (drop, length, take, uncons)
 import Data.Array as Arr
+import Data.Either (Either(..))
 import Data.Foldable (traverse_)
+import Data.Foreign (MultipleErrors)
+import Data.HTTP.Method (Method(..))
 import Data.List as L
 import Data.List.Lazy as LL
 import Data.Multiset as MS
 import Data.String (singleton)
+import Data.Traversable (sequence)
 import Data.Tuple (Tuple(..))
 import Data.Unfoldable (unfoldr)
 import Flare (UI, intSlider, resizableList, string, textarea)
 import Flare.Smolder (runFlareHTML)
+import Network.HTTP.Affjax (AJAX, Affjax, affjax, defaultRequest, AffjaxResponse)
+import Network.HTTP.Affjax (get, post)
+import Network.HTTP.Affjax.Response (ResponseContent)
 import Prelude (class Show, Unit, discard, show, ($), (+), (<$>), (<*>), (<>), (>), (>=))
 import Signal.Channel (CHANNEL)
-import Text.Smolder.HTML (div, label, span, table, td, tr)
+import Text.Smolder.HTML (div, label, map, span, table, td, tr)
 import Text.Smolder.HTML.Attributes (className, for, id)
 import Text.Smolder.Markup (Markup, (!), text)
 
@@ -132,6 +149,16 @@ puzzleUi p = mkPuzzle <$> textarea "Quote:" p.quote
                       <*> cluesUi (L.fromFoldable p.clues)
 
 
-main ∷ forall e. Eff (dom :: DOM, channel :: CHANNEL | e) Unit
-main = runFlareHTML "controls" "board" $
-        renderPuzzle <$> puzzleUi defaultPuzzle
+main ∷ forall e. Eff (dom :: DOM, channel :: CHANNEL, ajax :: AJAX, exception :: EXCEPTION | e) (Canceler _)
+main = launchAff $ do
+  response <- do 
+    res1  <- get "gistUrl"
+    pure res1.response
+  let 
+    puzz = fromJson $ response
+  let
+    (pui :: Either MultipleErrors (UI (ajax :: AJAX | e) Html)) = ((\p -> renderPuzzle <$> puzzleUi p) <$> puzz)
+  let 
+    (renderedPage ) = sequence $ (\p -> runFlareHTML "controls" "board" p) <$> pui
+  liftEff $ renderedPage
+    
