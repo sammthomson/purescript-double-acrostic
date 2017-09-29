@@ -8,12 +8,14 @@ module Acrostic.Edit (
 
 import Prelude
 
-import Acrostic.Puzzle (BoardIdx(BoardIdx), CharType(Letter, Punct), Clue, Puzzle, cleanQuote, fromJson, lettersRemaining, mkClue, mkPuzzle, source)
+import Acrostic.Gist (defaultGistId, loadPuzzleFromGist)
+import Acrostic.Puzzle (BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source)
+import Control.Alt ((<|>))
 import Control.Lazy (defer)
 import Control.Monad.Aff (launchAff_)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Exception (EXCEPTION)
+import Control.Monad.Except (lift, runExceptT)
 import DOM (DOM)
 import Data.Array (drop, length, take, uncons)
 import Data.Array as Arr
@@ -26,7 +28,7 @@ import Data.Tuple (Tuple(..))
 import Data.Unfoldable (unfoldr)
 import Flare (UI, intSlider, resizableList, string, textarea)
 import Flare.Smolder (runFlareHTML)
-import Network.HTTP.Affjax (AJAX, get)
+import Network.HTTP.Affjax (AJAX)
 import Signal.Channel (CHANNEL)
 import Text.Smolder.HTML (div, label, span, table, td, tr)
 import Text.Smolder.HTML.Attributes (className, for, id)
@@ -133,12 +135,8 @@ puzzleUi p = mkPuzzle <$> string "Title:" p.title
 
 main ∷ forall e. Eff (dom :: DOM,
                       channel :: CHANNEL,
-                      ajax :: AJAX,
-                      exception :: EXCEPTION | e) Unit
-main = launchAff_ $ do
-  response <- do 
-    res1  <- get "gistUrl"
-    pure res1.response
-  let puzz = fromJson $ response
-  let pui = (\p -> renderPuzzle <$> puzzleUi p) <$> puzz
-  liftEff $ traverse_ (runFlareHTML "controls" "board") pui
+                      ajax :: AJAX | e) Unit
+main = launchAff_ $ runExceptT $ do
+  puzz <- loadPuzzleFromGist defaultGistId <|> pure defaultPuzzle
+  let htmlUi = renderPuzzle <$> puzzleUi puzz
+  lift $ liftEff (runFlareHTML "controls" "board" htmlUi)
