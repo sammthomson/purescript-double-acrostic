@@ -11,8 +11,7 @@ import Prelude
 import Acrostic.Puzzle (Puzzle, fromJson)
 import Control.Monad.Aff (Aff, Error, try)
 import Control.Monad.Except (ExceptT(..), except, withExceptT)
-import Data.Foreign (ForeignError)
-import Data.List.Types (NonEmptyList)
+import Data.Foreign (MultipleErrors)
 import Network.HTTP.Affjax (AJAX, get)
 
 newtype GistId = GistId String
@@ -20,7 +19,7 @@ newtype GistId = GistId String
 -- | Two types of things could go wrong:
 data GistError =
   AjaxErr Error
-  | JsonErr (NonEmptyList ForeignError)
+  | JsonErr MultipleErrors
 
 toUrl :: GistId -> String
 toUrl (GistId i) = apiBasePath <> i
@@ -35,6 +34,7 @@ loadPuzzleFromGist gid = do
   r <- (try $ get url) # ExceptT # withExceptT AjaxErr
   fromJson r.response # except # withExceptT JsonErr
 
+-- I made this gist by hand, so it's probably not in the right format
 defaultGistId :: GistId
 defaultGistId = GistId "0b9abb47ec8815a089fd917afdc47e9f"
 
