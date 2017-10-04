@@ -30,7 +30,6 @@ table, th, td {
 }
 
 td {
-  width: 23px;
   height: 31px;
 }
 
@@ -49,6 +48,7 @@ td.err {
 
 td div.idx {
   height: 13px;
+  width: 27px;
   font-size: x-small;
 }
 

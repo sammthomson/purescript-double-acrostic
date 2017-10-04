@@ -102,7 +102,7 @@ letters :: Regex
 letters = re $ "[A-Z]"
 
 punctuation :: Regex
-punctuation = re $ "[,!@#$%^&*().:;-]"
+punctuation = re $ """[…',!@#$%^&*().:;/\\\-]"""
 
 charType :: Char -> Maybe CharType
 charType c | test letters (singleton c) = Just $ Letter c
