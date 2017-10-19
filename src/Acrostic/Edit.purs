@@ -8,16 +8,22 @@ module Acrostic.Edit (
 
 import Prelude
 
-import Acrostic.Gist (defaultGistId, loadPuzzleFromGist)
+import Acrostic.Puzzle (BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source, toJson)
+import Acrostic.Gist (loadPuzzleFromGist)
+import Acrostic.Puzzle (BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source)
+import Acrostic.Gist (loadPuzzleFromGist)
 import Acrostic.Puzzle (BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source, toJson)
 import Control.Alt ((<|>))
+import Acrostic.Gist (postPuzzleToGist)
+import Acrostic.Puzzle (BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source)
+import Acrostic.QueryString (setQueryStrings)
 import Control.Lazy (defer)
 import Control.Monad.Aff (launchAff_)
-import Control.Monad.Aff.Console (CONSOLE, log)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Except (lift, runExceptT)
 import Control.Monad.Maybe.Trans (MaybeT(..), runMaybeT)
+import Control.Monad.Except (ExceptT(..), lift, runExceptT)
 import DOM (DOM)
 import DOM.Event.EventTarget (EventListener, eventListener)
 import Data.Array (drop, length, take, uncons)
@@ -26,6 +32,7 @@ import Data.Foldable (traverse_)
 import Data.List as L
 import Data.List.Lazy as LL
 import Data.Multiset as MS
+import Data.StrMap as StrMap
 import Data.String (singleton)
 import Data.Tuple (Tuple(..))
 import Data.Unfoldable (unfoldr)
@@ -106,13 +113,13 @@ renderBoard quote numCols =
 
 
 -- | Renders the board, source, and table of remaining letters.
-renderPuzzle :: forall e. Puzzle -> Markup (EventListener (console :: CONSOLE | e))
+renderPuzzle :: forall e. Puzzle -> Markup (EventListener (dom :: DOM, ajax :: AJAX | e))
 renderPuzzle p =
   let
-    save e = launchAff_ do
-      log $ toJson p
-      -- ?savePuzzleAndSetLocationToGistId p
-      pure unit
+    save e = launchAff_ $ runExceptT $ do
+      id <- postPuzzleToGist p
+      -- todo show instructions to boorkmark, also show errors
+      liftEff $ setQueryStrings (StrMap.singleton "gist" id)
   in
     do
       div $
@@ -163,9 +170,8 @@ runFlareDom controlsId targetId =
 
 main ∷ forall e. Eff (dom :: DOM,
                       channel :: CHANNEL,
-                      console :: CONSOLE,
                       ajax :: AJAX | e) Unit
-main = launchAff_ $ runExceptT $ do
-  puzz <- loadPuzzleFromGist defaultGistId <|> pure defaultPuzzle
-  let htmlUi = renderPuzzle <$> puzzleUi puzz
-  lift $ liftEff (runFlareDom "controls" "board" htmlUi)
+main = launchAff_ $ do
+  -- todo: load puzzle if queryparam is present
+  let htmlUi = renderPuzzle <$> puzzleUi defaultPuzzle
+  liftEff (runFlareDom "controls" "board" htmlUi)
