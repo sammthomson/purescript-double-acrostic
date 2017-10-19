@@ -8,17 +8,18 @@ module Acrostic.Edit (
 
 import Prelude
 
-import Acrostic.Gist (defaultGistId, loadPuzzleFromGist)
+import Acrostic.Gist (defaultGistId, loadPuzzleFromGist, savePuzzleToGist)
 import Acrostic.Puzzle (BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source)
 import Control.Alt ((<|>))
 import Control.Lazy (defer)
 import Control.Monad.Aff (launchAff_)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Except (lift, runExceptT)
+import Control.Monad.Except (ExceptT(..), lift, runExceptT)
 import DOM (DOM)
 import Data.Array (drop, length, take, uncons)
 import Data.Array as Arr
+import Data.Either (Either(..))
 import Data.Foldable (traverse_)
 import Data.List as L
 import Data.List.Lazy as LL
@@ -138,5 +139,6 @@ main ∷ forall e. Eff (dom :: DOM,
                       ajax :: AJAX | e) Unit
 main = launchAff_ $ runExceptT $ do
   puzz <- loadPuzzleFromGist defaultGistId <|> pure defaultPuzzle
+  _ <- ExceptT $ map Right (savePuzzleToGist defaultGistId defaultPuzzle)
   let htmlUi = renderPuzzle <$> puzzleUi puzz
   lift $ liftEff (runFlareHTML "controls" "board" htmlUi)
