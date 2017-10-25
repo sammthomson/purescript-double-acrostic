@@ -4,11 +4,6 @@ import Acrostic.Edit (Cell(..), indexChars, renderCell, reshape)
 import Acrostic.Puzzle (BoardIdx(..), CharIdx(..), CharMap, Clue, ClueCharBoardIdx(..), ClueCharIdx(..), ClueIdx(..), Puzzle, answers, clues, defaultPuzzle)
 import Control.Monad.Eff (Eff)
 import DOM (DOM)
-import DOM.HTML (window)
-import DOM.HTML.Types (htmlDocumentToNonElementParentNode)
-import DOM.HTML.Window (document)
-import DOM.Node.NonElementParentNode (getElementById)
-import DOM.Node.Types (Element, ElementId(ElementId))
 import Data.Array (head, length, mapMaybe, zip, zipWith, (!!), (..))
 import Data.Bimap as B
 import Data.Foldable (foldl, traverse_)
@@ -172,10 +167,3 @@ indices xs = 0..(length xs)
 
 zipWithIndex :: forall a. Array a -> Array (Tuple Int a)
 zipWithIndex xs = zipWith Tuple (indices xs) xs
-
--- | More convenient `getElementById`
-getElement :: forall e. String -> Eff (dom :: DOM | e) (Maybe Element)
-getElement name = do
-  win <- window
-  doc <- document win
-  getElementById (ElementId name) (htmlDocumentToNonElementParentNode doc)

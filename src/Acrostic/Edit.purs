@@ -9,14 +9,17 @@ module Acrostic.Edit (
 import Prelude
 
 import Acrostic.Gist (defaultGistId, loadPuzzleFromGist)
-import Acrostic.Puzzle (BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source)
+import Acrostic.Puzzle (BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source, toJson)
 import Control.Alt ((<|>))
 import Control.Lazy (defer)
 import Control.Monad.Aff (launchAff_)
+import Control.Monad.Aff.Console (CONSOLE, log)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Except (lift, runExceptT)
+import Control.Monad.Maybe.Trans (MaybeT(..), runMaybeT)
 import DOM (DOM)
+import DOM.Event.EventTarget (EventListener, eventListener)
 import Data.Array (drop, length, take, uncons)
 import Data.Array as Arr
 import Data.Foldable (traverse_)
@@ -26,13 +29,14 @@ import Data.Multiset as MS
 import Data.String (singleton)
 import Data.Tuple (Tuple(..))
 import Data.Unfoldable (unfoldr)
-import Flare (UI, intSlider, resizableList, string, textarea)
-import Flare.Smolder (runFlareHTML)
+import Flare (ElementId, UI, intSlider, resizableList, runFlareWith, string, textarea)
+import Flare.Custom (getElement)
 import Network.HTTP.Affjax (AJAX)
 import Signal.Channel (CHANNEL)
-import Text.Smolder.HTML (div, label, span, table, td, tr)
+import Text.Smolder.HTML (button, div, label, span, table, td, tr)
 import Text.Smolder.HTML.Attributes (className, for, id)
-import Text.Smolder.Markup (Markup, (!), text)
+import Text.Smolder.Markup (Markup, (!), (#!), on, text)
+import Text.Smolder.Renderer.DOM (patch)
 
 
 -- | Renders a table with how many of each letter remain,
@@ -102,16 +106,25 @@ renderBoard quote numCols =
 
 
 -- | Renders the board, source, and table of remaining letters.
-renderPuzzle :: forall e. Puzzle -> Markup e
-renderPuzzle p = do
-  div $
-    (renderBoard p.quote p.numCols) ! id "board"
-  div $ do
-    label ! for "author" $ text "Source:"
-    span ! id "author" $ text $ source p
-  div $ do
-    label ! for "chars-left" $ text "Letters remaining:"
-    (renderLetterCount $ lettersRemaining p) ! id "chars-left"
+renderPuzzle :: forall e. Puzzle -> Markup (EventListener (console :: CONSOLE | e))
+renderPuzzle p =
+  let
+    save e = launchAff_ do
+      log $ toJson p
+      -- ?savePuzzleAndSetLocationToGistId p
+      pure unit
+  in
+    do
+      div $
+        button #! on "click" (eventListener save) $ text "Save"
+      div $
+        (renderBoard p.quote p.numCols) ! id "board"
+      div $ do
+        label ! for "author" $ text "Source:"
+        span ! id "author" $ text $ source p
+      div $ do
+        label ! for "chars-left" $ text "Letters remaining:"
+        (renderLetterCount $ lettersRemaining p) ! id "chars-left"
 
 
 -- | UI for a single clue
@@ -133,10 +146,26 @@ puzzleUi p = mkPuzzle <$> string "Title:" p.title
                       <*> cluesUi (L.fromFoldable p.clues)
 
 
+type DC e = (dom :: DOM, channel :: CHANNEL | e)
+-- | Renders a Flare UI with `Markup` as output. The first ID specifies
+-- | the DOM element for the controls while the second ID specifies the
+-- | element for the output.
+runFlareDom :: forall e.
+               ElementId
+               -> ElementId
+               -> UI e (Markup (EventListener (DC e)))
+               -> Eff (DC e) Unit
+runFlareDom controlsId targetId =
+  runFlareWith controlsId handler where
+    handler markup = void $ runMaybeT do
+      target <- MaybeT (getElement targetId)
+      lift $ patch target markup
+
 main ∷ forall e. Eff (dom :: DOM,
                       channel :: CHANNEL,
+                      console :: CONSOLE,
                       ajax :: AJAX | e) Unit
 main = launchAff_ $ runExceptT $ do
   puzz <- loadPuzzleFromGist defaultGistId <|> pure defaultPuzzle
   let htmlUi = renderPuzzle <$> puzzleUi puzz
-  lift $ liftEff (runFlareHTML "controls" "board" htmlUi)
+  lift $ liftEff (runFlareDom "controls" "board" htmlUi)

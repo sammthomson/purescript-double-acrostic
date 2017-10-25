@@ -1,4 +1,5 @@
 module Flare.Custom (
+  getElement,
   upperChar,
   rowUi
 ) where
@@ -7,7 +8,11 @@ import Prelude
 
 import Control.Monad.Eff (Eff)
 import DOM (DOM)
-import DOM.Node.Types (Element)
+import DOM.HTML (window)
+import DOM.HTML.Types (htmlDocumentToNonElementParentNode)
+import DOM.HTML.Window (document)
+import DOM.Node.NonElementParentNode (getElementById)
+import DOM.Node.Types (Element, ElementId(ElementId))
 import Data.Array (head)
 import Data.Maybe (Maybe, maybe)
 import Data.String (singleton, toCharArray)
@@ -54,3 +59,11 @@ createUI createComps label default = mkUi $ do
   comps <- createComps label default (send chan)
   let signal = subscribe chan
   pure $ mkFlare comps signal
+
+
+-- | More convenient `getElementById`
+getElement :: forall e. String -> Eff (dom :: DOM | e) (Maybe Element)
+getElement name = do
+  win <- window
+  doc <- document win
+  getElementById (ElementId name) (htmlDocumentToNonElementParentNode doc)
