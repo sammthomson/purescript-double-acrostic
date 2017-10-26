@@ -17,9 +17,6 @@ import Simple.JSON (readJSON, writeJSON)
 
 newtype GistId = GistId String
 
---instance jsonGistId :: ReadForeign GistId where
---  readJSON (GistId id) = id
-
 type GistPayload = {
   files :: {
     puzzle :: {
@@ -62,10 +59,10 @@ loadPuzzleFromGist gid = do
 
 -- Saving methods
 puzzleToGist :: Puzzle -> GistPayload
-puzzleToGist puzzle = {files:{puzzle:{content:toJson puzzle}}}
+puzzleToGist puzzle = { files: { puzzle: { content: toJson puzzle } } }
 
 gistResponseFromJson :: forall e. String ->
-                      ExceptT GistError (Aff (ajax :: AJAX | e)) GistResponse
+                        ExceptT GistError (Aff (ajax :: AJAX | e)) GistResponse
 gistResponseFromJson json = (runExcept $ readJSON json) # except # withExceptT JsonErr
 
 postPuzzleToGist :: forall e. Puzzle ->
