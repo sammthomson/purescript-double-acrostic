@@ -6,24 +6,17 @@ module Acrostic.Edit (
   reshape
 ) where
 
-import Prelude
+import Prelude hiding (div, id)
 
-import Acrostic.Puzzle (BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source, toJson)
-import Acrostic.Gist (loadPuzzleFromGist)
 import Acrostic.Puzzle (BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source)
-import Acrostic.Gist (loadPuzzleFromGist)
-import Acrostic.Puzzle (BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source, toJson)
-import Control.Alt ((<|>))
 import Acrostic.Gist (postPuzzleToGist)
-import Acrostic.Puzzle (BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source)
-import Acrostic.QueryString (setQueryStrings)
+import Try.QueryString (setQueryStrings)
 import Control.Lazy (defer)
 import Control.Monad.Aff (launchAff_)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Except (lift, runExceptT)
 import Control.Monad.Maybe.Trans (MaybeT(..), runMaybeT)
-import Control.Monad.Except (ExceptT(..), lift, runExceptT)
 import DOM (DOM)
 import DOM.Event.EventTarget (EventListener, eventListener)
 import Data.Array (drop, length, take, uncons)
