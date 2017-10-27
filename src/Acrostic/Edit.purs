@@ -8,7 +8,6 @@ module Acrostic.Edit (
 
 import Acrostic.Gist (GistId(..), loadPuzzleFromGist, postPuzzleToGist)
 import Acrostic.Puzzle (BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source)
-import Acrostic.QueryString (getQueryStringMaybe, setQueryStrings)
 import Control.Lazy (defer)
 import Control.Monad.Aff (launchAff_)
 import Control.Monad.Eff (Eff)
@@ -36,6 +35,7 @@ import Signal.Channel (CHANNEL)
 import Text.Smolder.HTML (button, div, label, span, table, td, tr)
 import Text.Smolder.HTML.Attributes (className, for, id)
 import Text.Smolder.Markup (Markup, (!), (#!), on, text)
+import Try.QueryString (getQueryStringMaybe, setQueryStrings)
 
 
 -- | Renders a table with how many of each letter remain,
@@ -163,9 +163,9 @@ main ∷ forall e. Eff (dom :: DOM,
                       channel :: CHANNEL,
                       ajax :: AJAX | e) Unit
 main = launchAff_ $ runExceptT $ do
-  (gistId :: Maybe String) <- liftEff $ getQueryStringMaybe "gist"
+  gistId <- liftEff $ getQueryStringMaybe "gist"
   puzz <- case gistId of
-                        Just id -> loadPuzzleFromGist $ GistId id
-                        Nothing -> pure defaultPuzzle
+            Just id -> loadPuzzleFromGist $ GistId id
+            Nothing -> pure defaultPuzzle
   let htmlUi = renderPuzzle <$> puzzleUi puzz
   lift $ liftEff (runFlareDom "controls" "board" htmlUi)

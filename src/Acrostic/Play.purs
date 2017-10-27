@@ -3,7 +3,7 @@ module Acrostic.Play where
 import Acrostic.Edit (Cell(..), indexChars, renderCell, reshape)
 import Acrostic.Gist (GistId(..), loadPuzzleFromGist)
 import Acrostic.Puzzle (BoardIdx(..), CharIdx(..), CharMap, Clue, ClueCharBoardIdx(..), ClueCharIdx(..), ClueIdx(..), Puzzle, answers, clues, defaultPuzzle)
-import Acrostic.QueryString (getQueryStringMaybe)
+import Try.QueryString (getQueryStringMaybe)
 import Control.Monad.Aff (launchAff_)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
@@ -31,10 +31,10 @@ import Text.Smolder.Markup (Markup, text, (!))
 
 main :: forall e. Eff (dom :: DOM, channel :: CHANNEL, ajax :: AJAX | e) Unit
 main = launchAff_ $ runExceptT do
-  (gistId :: Maybe String) <- liftEff $ getQueryStringMaybe "gist"
+  gistId <- liftEff $ getQueryStringMaybe "gist"
   puzz <- case gistId of
-                      Just id -> loadPuzzleFromGist $ GistId id
-                      Nothing -> pure defaultPuzzle
+            Just id -> loadPuzzleFromGist $ GistId id
+            Nothing -> pure defaultPuzzle
   liftEff $ runFlareHTML "controls" "board" $ renderPuzzle <$> puzzleUi (startPuzzle puzz)
 
 
