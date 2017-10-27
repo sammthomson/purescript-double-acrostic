@@ -1,6 +1,8 @@
 module Flare.Custom (
+  clobberRender,
   getElement,
   upperChar,
+  removeAllChildren,
   rowUi
 ) where
 
@@ -8,18 +10,23 @@ import Prelude
 
 import Control.Monad.Eff (Eff)
 import DOM (DOM)
+import DOM.Event.EventTarget (EventListener)
 import DOM.HTML (window)
 import DOM.HTML.Types (htmlDocumentToNonElementParentNode)
 import DOM.HTML.Window (document)
+import DOM.Node.Node (childNodes, removeChild)
+import DOM.Node.NodeList (toArray)
 import DOM.Node.NonElementParentNode (getElementById)
-import DOM.Node.Types (Element, ElementId(ElementId))
+import DOM.Node.Types (Element, ElementId(ElementId), Node, elementToNode)
 import Data.Array (head)
 import Data.Maybe (Maybe, maybe)
 import Data.String (singleton, toCharArray)
-import Data.Traversable (traverse)
+import Data.Traversable (traverse, traverse_)
 import Flare (Flare, Label, UI, setupFlare)
 import Signal as S
 import Signal.Channel (CHANNEL, subscribe, send, channel)
+import Text.Smolder.Markup (Markup)
+import Text.Smolder.Renderer.DOM (render)
 
 
 foreign import cUpperChar :: CreateComponent String
@@ -67,3 +74,22 @@ getElement name = do
   win <- window
   doc <- document win
   getElementById (ElementId name) (htmlDocumentToNonElementParentNode doc)
+
+-- | Remove all children of the given Element
+removeAllChildren :: forall e. Node -> Eff (dom :: DOM | e) Unit
+removeAllChildren element = do
+  childrenNodeList <- childNodes element
+  children <- toArray childrenNodeList
+  traverse_ (flip removeChild element) children
+
+-- | Render some Smolder markup into a target DOM element.
+-- |
+-- | This removes all existing children then appends the Smolder markup as new
+-- | child nodes.
+clobberRender :: forall e.
+                 Element ->
+                 Markup (EventListener (dom :: DOM | e)) ->
+                 Eff (dom :: DOM | e) Unit
+clobberRender target markup = do
+  removeAllChildren (elementToNode target)
+  render target markup

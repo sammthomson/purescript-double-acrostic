@@ -6,13 +6,11 @@ module Acrostic.Edit (
   reshape
 ) where
 
-import Prelude hiding (div, id)
-
-import Acrostic.Puzzle (BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source)
 import Acrostic.Gist (postPuzzleToGist)
-import Try.QueryString (setQueryStrings)
+import Acrostic.Puzzle (BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source, toJson)
 import Control.Lazy (defer)
 import Control.Monad.Aff (launchAff_)
+import Control.Monad.Aff.Console (CONSOLE, logShow)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Except (lift, runExceptT)
@@ -30,13 +28,14 @@ import Data.String (singleton)
 import Data.Tuple (Tuple(..))
 import Data.Unfoldable (unfoldr)
 import Flare (ElementId, UI, intSlider, resizableList, runFlareWith, string, textarea)
-import Flare.Custom (getElement)
+import Flare.Custom (clobberRender, getElement)
 import Network.HTTP.Affjax (AJAX)
+import Prelude hiding (div,id)
 import Signal.Channel (CHANNEL)
 import Text.Smolder.HTML (button, div, label, span, table, td, tr)
 import Text.Smolder.HTML.Attributes (className, for, id)
 import Text.Smolder.Markup (Markup, (!), (#!), on, text)
-import Text.Smolder.Renderer.DOM (patch)
+import Try.QueryString (setQueryStrings)
 
 
 -- | Renders a table with how many of each letter remain,
@@ -106,10 +105,11 @@ renderBoard quote numCols =
 
 
 -- | Renders the board, source, and table of remaining letters.
-renderPuzzle :: forall e. Puzzle -> Markup (EventListener (dom :: DOM, ajax :: AJAX | e))
+renderPuzzle :: forall e. Puzzle -> Markup (EventListener (console :: CONSOLE, dom :: DOM, ajax :: AJAX | e))
 renderPuzzle p =
   let
     save e = launchAff_ $ runExceptT $ do
+      lift $ logShow $ toJson p
       id <- postPuzzleToGist p
       -- todo show instructions to boorkmark, also show errors
       liftEff $ setQueryStrings (StrMap.singleton "gist" id)
@@ -159,9 +159,10 @@ runFlareDom controlsId targetId =
   runFlareWith controlsId handler where
     handler markup = void $ runMaybeT do
       target <- MaybeT (getElement targetId)
-      lift $ patch target markup
+      lift $ clobberRender target markup
 
 main ∷ forall e. Eff (dom :: DOM,
+                      console :: CONSOLE,
                       channel :: CHANNEL,
                       ajax :: AJAX | e) Unit
 main = launchAff_ $ do
