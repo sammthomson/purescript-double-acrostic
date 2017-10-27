@@ -23,21 +23,20 @@ import Data.Array as Arr
 import Data.Foldable (traverse_)
 import Data.List as L
 import Data.List.Lazy as LL
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (Maybe(..))
 import Data.Multiset as MS
 import Data.StrMap as StrMap
 import Data.String (singleton)
 import Data.Tuple (Tuple(..))
 import Data.Unfoldable (unfoldr)
 import Flare (ElementId, UI, intSlider, resizableList, runFlareWith, string, textarea)
-import Flare.Custom (getElement)
+import Flare.Custom (clobberRender, getElement)
 import Network.HTTP.Affjax (AJAX)
 import Prelude hiding (div,id)
 import Signal.Channel (CHANNEL)
 import Text.Smolder.HTML (button, div, label, span, table, td, tr)
 import Text.Smolder.HTML.Attributes (className, for, id)
 import Text.Smolder.Markup (Markup, (!), (#!), on, text)
-import Text.Smolder.Renderer.DOM (patch, render)
 
 
 -- | Renders a table with how many of each letter remain,
@@ -107,10 +106,11 @@ renderBoard quote numCols =
 
 
 -- | Renders the board, source, and table of remaining letters.
-renderPuzzle :: forall e. Puzzle -> Markup (EventListener (dom :: DOM, ajax :: AJAX, console :: CONSOLE | e))
+renderPuzzle :: forall e. Puzzle -> Markup (EventListener (console :: CONSOLE, dom :: DOM, ajax :: AJAX | e))
 renderPuzzle p =
   let
     save e = launchAff_ $ runExceptT $ do
+      lift $ logShow $ toJson p
       id <- postPuzzleToGist p
       _ <- lift $ log $ toJson p
       liftEff $ setQueryStrings (StrMap.singleton "gist" id)
@@ -160,9 +160,10 @@ runFlareDom controlsId targetId =
   runFlareWith controlsId handler where
     handler markup = void $ runMaybeT do
       target <- MaybeT (getElement targetId)
-      lift $ render target markup
+      lift $ clobberRender target markup
 
 main ∷ forall e. Eff (dom :: DOM,
+                      console :: CONSOLE,
                       channel :: CHANNEL,
                       ajax :: AJAX,
                       console :: CONSOLE | e) Unit
