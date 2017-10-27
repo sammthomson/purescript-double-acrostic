@@ -6,11 +6,13 @@ module Acrostic.Edit (
   reshape
 ) where
 
-import Acrostic.Gist (GistId(..), loadPuzzleFromGist, postPuzzleToGist)
-import Acrostic.Puzzle (BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source)
+import Prelude hiding (div,id)
+
+import Acrostic.Gist (loadPuzzleFromQueryString, postPuzzleToGist)
+import Acrostic.Puzzle (BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, lettersRemaining, mkClue, mkPuzzle, source)
 import Control.Lazy (defer)
-import Control.Monad.Aff (catchError, launchAff_)
-import Control.Monad.Aff.Console (CONSOLE, logShow)
+import Control.Monad.Aff (launchAff_)
+import Control.Monad.Aff.Console (CONSOLE)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Except (lift, runExceptT)
@@ -22,7 +24,6 @@ import Data.Array as Arr
 import Data.Foldable (traverse_)
 import Data.List as L
 import Data.List.Lazy as LL
-import Data.Maybe (Maybe(..))
 import Data.Multiset as MS
 import Data.StrMap as StrMap
 import Data.String (singleton)
@@ -31,12 +32,11 @@ import Data.Unfoldable (unfoldr)
 import Flare (ElementId, UI, intSlider, resizableList, runFlareWith, string, textarea)
 import Flare.Custom (clobberRender, getElement)
 import Network.HTTP.Affjax (AJAX)
-import Prelude hiding (div,id)
 import Signal.Channel (CHANNEL)
 import Text.Smolder.HTML (button, div, label, span, table, td, tr)
 import Text.Smolder.HTML.Attributes (className, for, id)
 import Text.Smolder.Markup (Markup, (!), (#!), on, text)
-import Try.QueryString (getQueryStringMaybe, setQueryStrings)
+import Try.QueryString (setQueryStrings)
 
 
 -- | Renders a table with how many of each letter remain,
@@ -165,11 +165,6 @@ main ∷ forall e. Eff (dom :: DOM,
                       channel :: CHANNEL,
                       ajax :: AJAX | e) Unit
 main = launchAff_ $ runExceptT $ do
-  gistId <- liftEff $ getQueryStringMaybe "gist"
-  puzz <- case gistId of
-            Just id -> loadPuzzleFromGist (GistId id) `catchError` \e -> do
-              lift $ logShow e
-              pure defaultPuzzle
-            Nothing -> pure defaultPuzzle
+  puzz <- loadPuzzleFromQueryString
   let htmlUi = renderPuzzle <$> puzzleUi puzz
   lift $ liftEff (runFlareDom "controls" "board" htmlUi)
