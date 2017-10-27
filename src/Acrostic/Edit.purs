@@ -6,13 +6,12 @@ module Acrostic.Edit (
   reshape
 ) where
 
-import Prelude hiding (div, id)
-
-import Acrostic.Puzzle (BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source)
-import Acrostic.Gist (postPuzzleToGist)
-import Try.QueryString (setQueryStrings)
+import Acrostic.Gist (GistId(..), loadPuzzleFromGist, postPuzzleToGist)
+import Acrostic.Puzzle (BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source, toJson)
+import Acrostic.QueryString (getQueryStringMaybe, setQueryStrings)
 import Control.Lazy (defer)
 import Control.Monad.Aff (launchAff_)
+import Control.Monad.Aff.Console (CONSOLE, log, logShow)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Except (lift, runExceptT)
@@ -24,6 +23,7 @@ import Data.Array as Arr
 import Data.Foldable (traverse_)
 import Data.List as L
 import Data.List.Lazy as LL
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Multiset as MS
 import Data.StrMap as StrMap
 import Data.String (singleton)
@@ -32,11 +32,12 @@ import Data.Unfoldable (unfoldr)
 import Flare (ElementId, UI, intSlider, resizableList, runFlareWith, string, textarea)
 import Flare.Custom (getElement)
 import Network.HTTP.Affjax (AJAX)
+import Prelude hiding (div,id)
 import Signal.Channel (CHANNEL)
 import Text.Smolder.HTML (button, div, label, span, table, td, tr)
 import Text.Smolder.HTML.Attributes (className, for, id)
 import Text.Smolder.Markup (Markup, (!), (#!), on, text)
-import Text.Smolder.Renderer.DOM (patch)
+import Text.Smolder.Renderer.DOM (patch, render)
 
 
 -- | Renders a table with how many of each letter remain,
@@ -106,12 +107,12 @@ renderBoard quote numCols =
 
 
 -- | Renders the board, source, and table of remaining letters.
-renderPuzzle :: forall e. Puzzle -> Markup (EventListener (dom :: DOM, ajax :: AJAX | e))
+renderPuzzle :: forall e. Puzzle -> Markup (EventListener (dom :: DOM, ajax :: AJAX, console :: CONSOLE | e))
 renderPuzzle p =
   let
     save e = launchAff_ $ runExceptT $ do
       id <- postPuzzleToGist p
-      -- todo show instructions to boorkmark, also show errors
+      _ <- lift $ log $ toJson p
       liftEff $ setQueryStrings (StrMap.singleton "gist" id)
   in
     do
@@ -159,12 +160,16 @@ runFlareDom controlsId targetId =
   runFlareWith controlsId handler where
     handler markup = void $ runMaybeT do
       target <- MaybeT (getElement targetId)
-      lift $ patch target markup
+      lift $ render target markup
 
 main ∷ forall e. Eff (dom :: DOM,
                       channel :: CHANNEL,
-                      ajax :: AJAX | e) Unit
-main = launchAff_ $ do
-  -- todo: load puzzle if queryparam is present
-  let htmlUi = renderPuzzle <$> puzzleUi defaultPuzzle
-  liftEff (runFlareDom "controls" "board" htmlUi)
+                      ajax :: AJAX,
+                      console :: CONSOLE | e) Unit
+main = launchAff_ $ runExceptT $ do
+  (gistId :: Maybe String) <- liftEff $ getQueryStringMaybe "gist"
+  puzz <- case gistId of
+                        Just id -> loadPuzzleFromGist $ GistId id
+                        Nothing -> pure defaultPuzzle
+  let htmlUi = renderPuzzle <$> puzzleUi puzz
+  lift $ liftEff (runFlareDom "controls" "board" htmlUi)
