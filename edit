@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Double Acrostic (Edit)</title>
+    <link href="css/main.css" rel="stylesheet">
+  </head>
+  <body>
+    <div id="controls-container">
+      <div id="controls"></div>
+    </div>
+    <div id="content">
+      <div id="board-container">
+        <div id="board"></div>
+      </div>
+    </div>
+    <script src="js/edit.js" type="text/javascript"></script>
+  </body>
+</html>

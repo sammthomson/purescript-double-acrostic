@@ -1,0 +1,64 @@
+#content {
+  float: left;
+  margin: 10px;
+}
+
+#controls-container {
+  float: left;
+  margin-right: 20px;
+}
+
+.flare-input {
+  margin-bottom: 10px;
+}
+
+.flare-input-textarea {
+  width: 350px;
+}
+
+label {
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+table, th, td {
+  border: 1px solid black;
+}
+
+td {
+  height: 31px;
+}
+
+td.blank {
+  background-color: black;
+}
+
+td.punct {
+  color: white;
+  background-color: black;
+}
+
+td.err {
+  background-color: pink;
+}
+
+td div.idx {
+  height: 13px;
+  width: 27px;
+  font-size: x-small;
+}
+
+td div.letter {
+  height: 18px;
+  text-align: center;
+}
+
+
+#chars-left, #chars-left td {
+  border: 0px;
+  text-align: right;
+}
