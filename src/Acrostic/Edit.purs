@@ -9,7 +9,8 @@ module Acrostic.Edit (
 import Acrostic.Gist (GistId(..), loadPuzzleFromGist, postPuzzleToGist)
 import Acrostic.Puzzle (BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source)
 import Control.Lazy (defer)
-import Control.Monad.Aff (launchAff_)
+import Control.Monad.Aff (catchError, launchAff_)
+import Control.Monad.Aff.Console (CONSOLE, logShow)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Except (lift, runExceptT)
@@ -160,12 +161,15 @@ runFlareDom controlsId targetId =
       lift $ clobberRender target markup
 
 main ∷ forall e. Eff (dom :: DOM,
+                      console :: CONSOLE,
                       channel :: CHANNEL,
                       ajax :: AJAX | e) Unit
 main = launchAff_ $ runExceptT $ do
   gistId <- liftEff $ getQueryStringMaybe "gist"
   puzz <- case gistId of
-            Just id -> loadPuzzleFromGist $ GistId id
+            Just id -> loadPuzzleFromGist (GistId id) `catchError` \e -> do
+              lift $ logShow e
+              pure defaultPuzzle
             Nothing -> pure defaultPuzzle
   let htmlUi = renderPuzzle <$> puzzleUi puzz
   lift $ liftEff (runFlareDom "controls" "board" htmlUi)

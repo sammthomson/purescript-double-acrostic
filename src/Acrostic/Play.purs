@@ -3,11 +3,11 @@ module Acrostic.Play where
 import Acrostic.Edit (Cell(..), indexChars, renderCell, reshape)
 import Acrostic.Gist (GistId(..), loadPuzzleFromGist)
 import Acrostic.Puzzle (BoardIdx(..), CharIdx(..), CharMap, Clue, ClueCharBoardIdx(..), ClueCharIdx(..), ClueIdx(..), Puzzle, answers, clues, defaultPuzzle)
-import Try.QueryString (getQueryStringMaybe)
-import Control.Monad.Aff (launchAff_)
+import Control.Monad.Aff (catchError, launchAff_)
+import Control.Monad.Aff.Console (CONSOLE, logShow)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Except (runExceptT)
+import Control.Monad.Except (lift, runExceptT)
 import DOM (DOM)
 import Data.Array (head, length, mapMaybe, zip, zipWith, (!!), (..))
 import Data.Bimap as B
@@ -27,15 +27,23 @@ import Signal.Channel (CHANNEL)
 import Text.Smolder.HTML (div, label, span, table, tr)
 import Text.Smolder.HTML.Attributes (id, for)
 import Text.Smolder.Markup (Markup, text, (!))
+import Try.QueryString (getQueryStringMaybe)
 
 
-main :: forall e. Eff (dom :: DOM, channel :: CHANNEL, ajax :: AJAX | e) Unit
+main :: forall e. Eff (dom :: DOM,
+                       console :: CONSOLE,
+                       channel :: CHANNEL,
+                       ajax :: AJAX | e) Unit
 main = launchAff_ $ runExceptT do
   gistId <- liftEff $ getQueryStringMaybe "gist"
   puzz <- case gistId of
-            Just id -> loadPuzzleFromGist $ GistId id
+            Just id -> loadPuzzleFromGist (GistId id) `catchError` \e -> do
+              lift $ logShow e
+              pure defaultPuzzle
             Nothing -> pure defaultPuzzle
-  liftEff $ runFlareHTML "controls" "board" $ renderPuzzle <$> puzzleUi (startPuzzle puzz)
+  liftEff $
+    runFlareHTML "controls" "board" $
+      renderPuzzle <$> puzzleUi (startPuzzle puzz)
 
 
 type PuzzleInProgress = {
