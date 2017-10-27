@@ -7,11 +7,10 @@ module Acrostic.Edit (
 ) where
 
 import Acrostic.Gist (GistId(..), loadPuzzleFromGist, postPuzzleToGist)
-import Acrostic.Puzzle (BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source, toJson)
+import Acrostic.Puzzle (BoardIdx(..), CharType(..), Clue, Puzzle, cleanQuote, defaultPuzzle, lettersRemaining, mkClue, mkPuzzle, source)
 import Acrostic.QueryString (getQueryStringMaybe, setQueryStrings)
 import Control.Lazy (defer)
 import Control.Monad.Aff (launchAff_)
-import Control.Monad.Aff.Console (CONSOLE, log, logShow)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import Control.Monad.Except (lift, runExceptT)
@@ -106,13 +105,11 @@ renderBoard quote numCols =
 
 
 -- | Renders the board, source, and table of remaining letters.
-renderPuzzle :: forall e. Puzzle -> Markup (EventListener (console :: CONSOLE, dom :: DOM, ajax :: AJAX | e))
+renderPuzzle :: forall e. Puzzle -> Markup (EventListener (dom :: DOM, ajax :: AJAX | e))
 renderPuzzle p =
   let
     save e = launchAff_ $ runExceptT $ do
-      lift $ logShow $ toJson p
       id <- postPuzzleToGist p
-      _ <- lift $ log $ toJson p
       liftEff $ setQueryStrings (StrMap.singleton "gist" id)
   in
     do
@@ -163,10 +160,8 @@ runFlareDom controlsId targetId =
       lift $ clobberRender target markup
 
 main ∷ forall e. Eff (dom :: DOM,
-                      console :: CONSOLE,
                       channel :: CHANNEL,
-                      ajax :: AJAX,
-                      console :: CONSOLE | e) Unit
+                      ajax :: AJAX | e) Unit
 main = launchAff_ $ runExceptT $ do
   (gistId :: Maybe String) <- liftEff $ getQueryStringMaybe "gist"
   puzz <- case gistId of

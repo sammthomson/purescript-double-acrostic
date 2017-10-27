@@ -1,8 +1,13 @@
 module Acrostic.Play where
 
 import Acrostic.Edit (Cell(..), indexChars, renderCell, reshape)
+import Acrostic.Gist (GistId(..), loadPuzzleFromGist)
 import Acrostic.Puzzle (BoardIdx(..), CharIdx(..), CharMap, Clue, ClueCharBoardIdx(..), ClueCharIdx(..), ClueIdx(..), Puzzle, answers, clues, defaultPuzzle)
+import Acrostic.QueryString (getQueryStringMaybe)
+import Control.Monad.Aff (launchAff_)
 import Control.Monad.Eff (Eff)
+import Control.Monad.Eff.Class (liftEff)
+import Control.Monad.Except (runExceptT)
 import DOM (DOM)
 import Data.Array (head, length, mapMaybe, zip, zipWith, (!!), (..))
 import Data.Bimap as B
@@ -16,16 +21,21 @@ import Data.Tuple (Tuple(..), fst, snd)
 import Flare (UI, fieldset)
 import Flare.Custom (upperChar, rowUi)
 import Flare.Smolder (runFlareHTML)
-import Prelude (Unit, bind, const, discard, join, map, show, ($), (<#>), (<$>), (<<<), (<>))
+import Network.HTTP.Affjax (AJAX)
+import Prelude (Unit, bind, const, discard, join, map, pure, show, ($), (<#>), (<$>), (<<<), (<>))
 import Signal.Channel (CHANNEL)
 import Text.Smolder.HTML (div, label, span, table, tr)
 import Text.Smolder.HTML.Attributes (id, for)
 import Text.Smolder.Markup (Markup, text, (!))
 
 
-main :: forall e. Eff (dom :: DOM, channel :: CHANNEL | e) Unit
-main = runFlareHTML "controls" "board" $
-        renderPuzzle <$> puzzleUi (startPuzzle defaultPuzzle)
+main :: forall e. Eff (dom :: DOM, channel :: CHANNEL, ajax :: AJAX | e) Unit
+main = launchAff_ $ runExceptT do
+  (gistId :: Maybe String) <- liftEff $ getQueryStringMaybe "gist"
+  puzz <- case gistId of
+                      Just id -> loadPuzzleFromGist $ GistId id
+                      Nothing -> pure defaultPuzzle
+  liftEff $ runFlareHTML "controls" "board" $ renderPuzzle <$> puzzleUi (startPuzzle puzz)
 
 
 type PuzzleInProgress = {
