@@ -9,7 +9,6 @@ import Control.Monad.Aff (launchAff_)
 import Control.Monad.Aff.Console (CONSOLE)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Except (runExceptT)
 import DOM (DOM)
 import Data.Array (head, length, mapMaybe, zip, zipWith, (!!), (..))
 import Data.Bimap as B
@@ -34,7 +33,7 @@ main :: forall e. Eff (dom :: DOM,
                        console :: CONSOLE,
                        channel :: CHANNEL,
                        ajax :: AJAX | e) Unit
-main = launchAff_ $ runExceptT do
+main = launchAff_ do
   puzz <- loadPuzzleFromQueryString
   liftEff $
     runFlareHTML "controls" "board" $

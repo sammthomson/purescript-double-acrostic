@@ -10,13 +10,14 @@ module Acrostic.Gist (
 import Prelude
 
 import Acrostic.Puzzle (Puzzle, defaultPuzzle, fromJson, toJson)
-import Control.Monad.Aff (Aff, Error, catchError, try)
+import Control.Monad.Aff (Aff, Error, try)
 import Control.Monad.Aff.Console (CONSOLE, logShow)
 import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Except (ExceptT(..), except, lift, runExcept, withExceptT)
+import Control.Monad.Except (ExceptT(..), except, runExcept, runExceptT, withExceptT)
 import DOM (DOM)
+import Data.Either (either)
 import Data.Foreign (MultipleErrors)
-import Data.Maybe (Maybe(..))
+import Data.Maybe (maybe)
 import Network.HTTP.Affjax (AJAX, get, post)
 import Simple.JSON (readJSON, writeJSON)
 import Try.QueryString (getQueryStringMaybe)
@@ -63,22 +64,20 @@ loadPuzzleFromGist gid = do
   payload <- gistPayloadFromJson r.response
   (fromJson payload.files.puzzle.content) # except # withExceptT JsonErr
 
--- | looks up the "gist" querystring in the current url location,
+-- | Looks up the "gist" querystring in the current url location,
 -- | then fetches that gist from github api.
 -- | If "gist" querystring is missing or ajax call fails,
 -- | logs error and returns `defaultPuzzle`.
-loadPuzzleFromQueryString ::
-  forall e. ExceptT GistError (Aff (ajax :: AJAX,
-                                    console :: CONSOLE,
-                                    dom :: DOM | e)) Puzzle
+loadPuzzleFromQueryString :: forall e.
+                             Aff (ajax :: AJAX,
+                                  console :: CONSOLE,
+                                  dom :: DOM | e) Puzzle
 loadPuzzleFromQueryString = do
-  let default = pure defaultPuzzle
-  gistId <- liftEff $ getQueryStringMaybe "gist"
-  case gistId of
-    Just id -> loadPuzzleFromGist (GistId id) `catchError` \e -> do
-      lift $ logShow e
-      default
-    Nothing -> default
+  maybeGistId <- liftEff $ getQueryStringMaybe "gist"
+  maybeGistId # maybe (pure defaultPuzzle) \gistId -> do
+    eitherPuzz <- runExceptT $ loadPuzzleFromGist $ GistId gistId
+    eitherPuzz # either (\e -> logShow e $> defaultPuzzle) pure
+
 
 -- Saving methods
 puzzleToGist :: Puzzle -> GistPayload

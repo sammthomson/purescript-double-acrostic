@@ -39,6 +39,15 @@ import Text.Smolder.Markup (Markup, (!), (#!), on, text)
 import Try.QueryString (setQueryStrings)
 
 
+main ∷ forall e. Eff (dom :: DOM,
+                      console :: CONSOLE,
+                      channel :: CHANNEL,
+                      ajax :: AJAX | e) Unit
+main = launchAff_ $ do
+  puzz <- loadPuzzleFromQueryString
+  let htmlUi = renderPuzzle <$> puzzleUi puzz
+  liftEff (runFlareDom "controls" "board" htmlUi)
+
 -- | Renders a table with how many of each letter remain,
 -- | with overused letters in red.
 renderLetterCount :: forall e. MS.Multiset Char -> Markup e
@@ -159,12 +168,3 @@ runFlareDom controlsId targetId =
     handler markup = void $ runMaybeT do
       target <- MaybeT (getElement targetId)
       lift $ clobberRender target markup
-
-main ∷ forall e. Eff (dom :: DOM,
-                      console :: CONSOLE,
-                      channel :: CHANNEL,
-                      ajax :: AJAX | e) Unit
-main = launchAff_ $ runExceptT $ do
-  puzz <- loadPuzzleFromQueryString
-  let htmlUi = renderPuzzle <$> puzzleUi puzz
-  lift $ liftEff (runFlareDom "controls" "board" htmlUi)
