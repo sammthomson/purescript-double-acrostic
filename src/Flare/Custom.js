@@ -1,35 +1,70 @@
 "use strict";
 
+
 /** Creates an input for a single capital letter. */
-exports.cUpperChar = function(idx) {
-  return function(initial) {
-    return function(send) {
-      return function() {
-        var uid = getUniqueID();
-        var input = document.createElement("input");
-        input.type = "text";
-        input.value = initial;
-        input.size = 1;
-        input.id = uid;
-        input.style = "border: 0;";
+exports.cUpperChar = function(nextInput) {
+  return function (previousInput) {
+      return function(idx) {
+      return function(initial) {
+        return function(send) {
+          return function() {
+            var uid = getUniqueID();
+            var input = document.createElement("input");
+            input.type = "text";
+            input.value = initial;
+            input.size = 1;
+            input.id = uid;
+            input.style = "border: 0;";
 
-        var idxDiv = document.createElement("div");
-        idxDiv.className += " idx";
-        idxDiv.appendChild(document.createTextNode(idx));
+            var idxDiv = document.createElement("div");
+            idxDiv.className += " idx";
+            idxDiv.appendChild(document.createTextNode(idx));
 
-        var letterDiv = document.createElement("div");
-        letterDiv.className += " letter";
-        letterDiv.appendChild(input);
+            var letterDiv = document.createElement("div");
+            letterDiv.className += " letter";
+            letterDiv.appendChild(input);
 
-        input.addEventListener("input", function(e) {
-          var value = e.target.value;
-          // validate
-          value = value.toUpperCase().substring(0, 1);
-          e.target.value = value;
-          send(value)();
-        });
+            // select all by default when moving to a char input
+            function focusAndSelectAll(target) {
+              if (target != null) {
+                target.focus();
+                target.select();
+              }
+            }
+            input.addEventListener("input", function(e) {
+              var target = e.srcElement || e.target;
+              var value = target.value;
+              var length = target.value.length;
+              if (length >= 1) {
+                focusAndSelectAll(nextInput(target)());
+              }
+              // upper-case and truncate to the first char
+              value = value.substring(value.length - 1, value.length).toUpperCase();
+              e.target.value = value;
+              send(value)();
+            });
+            // allow navigating to previous/next input using arrow keys
+            input.addEventListener("keydown", function(e) {
+              var target = e.srcElement || e.target;
+              if (e.key == "ArrowRight") {
+                focusAndSelectAll(nextInput(target)());
+              } else if (e.key == "ArrowLeft") {
+                focusAndSelectAll(previousInput(target)());
+              }
+            });
+            // move to the previous input when the backspace key is *released*
+            // (so only one char is deleted per keystroke, and current char is
+            // deleted before moving to previous input.)
+            input.addEventListener("keyup", function(e) {
+              var target = e.srcElement || e.target;
+              if (e.key == "Backspace") {
+                focusAndSelectAll(previousInput(target)());
+              }
+            });
 
-        return [idxDiv, letterDiv];
+            return [idxDiv, letterDiv];
+          };
+        };
       };
     };
   };
