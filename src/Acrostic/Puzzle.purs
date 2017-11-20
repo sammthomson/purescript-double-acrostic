@@ -23,7 +23,7 @@ module Acrostic.Puzzle (
 import Prelude
 
 import Control.Monad.Except (runExcept)
-import Data.Array (fromFoldable, mapMaybe)
+import Data.Array (fromFoldable, mapMaybe, replicate)
 import Data.Bimap (Bimap)
 import Data.Char (fromCharCode, toCharCode)
 import Data.Either (Either)
@@ -33,7 +33,7 @@ import Data.Group (ginverse)
 import Data.Maybe (Maybe(..))
 import Data.Multiset as MS
 import Data.Newtype (class Newtype)
-import Data.String (singleton, take, toCharArray, toUpper)
+import Data.String (fromCharArray, singleton, take, toCharArray, toUpper)
 import Data.String.Regex (Regex, test)
 import Data.String.Regex.Flags (global)
 import Data.String.Regex.Unsafe (unsafeRegex)
@@ -132,8 +132,14 @@ fromJson :: String -> Either MultipleErrors Puzzle
 fromJson json = runExcept $ readJSON json
 
 -- | Clues are indexed by letters starting at 'A'
+-- | The 27th clue should be "AA", the 53th should be "AAA", etc.
 instance showClueIdx :: Show ClueIdx where
-  show (ClueIdx i) = singleton $ fromCharCode $ toCharCode 'A' + i
+  show (ClueIdx i) =
+    let
+      c = fromCharCode $ toCharCode 'A' + (i `mod` 26)
+      len = i / 26 + 1
+    in
+      fromCharArray $ replicate len c
 
 -- | pretend they're 1-indexed
 instance showBoardIdx :: Show BoardIdx where
