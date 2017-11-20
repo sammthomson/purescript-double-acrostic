@@ -63,7 +63,7 @@ clues :: Puzzle -> Array String
 clues p = _.clue <$> p.clues
 
 answers :: Puzzle -> Array String
-answers p = (toUpper <<< _.answer) <$> p.clues
+answers p = (fromCharArray <<< lettersOnly <<< _.answer) <$> p.clues
 
 acronym :: forall t. Foldable t => t String -> String
 acronym = foldMap (toUpper <<< take 1)
@@ -115,10 +115,13 @@ charType c | otherwise = Nothing
 cleanQuote :: String -> Array CharType
 cleanQuote q = mapMaybe charType $ toCharArray $ toUpper q
 
+lettersOnly :: String -> Array Char
+lettersOnly s = mapMaybe justLetters $ cleanQuote s where
+  justLetters (Letter c) = Just c
+  justLetters _ = Nothing
+
 countLetters :: String -> MS.Multiset Char
-countLetters s = MS.fromFoldable $ mapMaybe lettersOnly $ cleanQuote s where
-  lettersOnly (Letter c) = Just c
-  lettersOnly _ = Nothing
+countLetters s = MS.fromFoldable $ lettersOnly s
 
 -- | Counts letters in `p.quote` minus letters in `answers p`.
 lettersRemaining :: Puzzle -> MS.Multiset Char
@@ -131,7 +134,7 @@ toJson = writeJSON
 fromJson :: String -> Either MultipleErrors Puzzle
 fromJson json = runExcept $ readJSON json
 
--- | Clues are indexed by letters starting at 'A'
+-- | Clues are indexed by letters starting at 'A'.
 -- | The 27th clue should be "AA", the 53th should be "AAA", etc.
 instance showClueIdx :: Show ClueIdx where
   show (ClueIdx i) =
