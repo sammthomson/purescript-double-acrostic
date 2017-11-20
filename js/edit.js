@@ -2542,6 +2542,10 @@ var PS = {};
     return c;
   };
 
+  exports.fromCharArray = function (a) {
+    return a.join("");
+  };
+
   exports.replace = function (s1) {
     return function (s2) {
       return function (s3) {
@@ -2618,6 +2622,7 @@ var PS = {};
   exports["newtypePattern"] = newtypePattern;
   exports["newtypeReplacement"] = newtypeReplacement;
   exports["drop"] = $foreign.drop;
+  exports["fromCharArray"] = $foreign.fromCharArray;
   exports["replaceAll"] = $foreign.replaceAll;
   exports["singleton"] = $foreign.singleton;
   exports["split"] = $foreign.split;
@@ -4717,6 +4722,7 @@ var PS = {};
   var Data_Char = PS["Data.Char"];
   var Data_Either = PS["Data.Either"];
   var Data_Eq = PS["Data.Eq"];
+  var Data_EuclideanRing = PS["Data.EuclideanRing"];
   var Data_Foldable = PS["Data.Foldable"];
   var Data_Foreign = PS["Data.Foreign"];
   var Data_Function = PS["Data.Function"];
@@ -4855,20 +4861,23 @@ var PS = {};
   var cleanQuote = function (q) {
       return Data_Array.mapMaybe(charType)(Data_String.toCharArray(Data_String.toUpper(q)));
   };
-  var countLetters = function (s) {
-      var lettersOnly = function (v) {
+  var lettersOnly = function (s) {
+      var justLetters = function (v) {
           if (v instanceof Letter) {
               return new Data_Maybe.Just(v.value0);
           };
           return Data_Maybe.Nothing.value;
       };
-      return Data_Multiset.fromFoldable(Data_Foldable.foldableArray)(Data_Eq.eqChar)(Data_Ord.ordChar)(Data_Array.mapMaybe(lettersOnly)(cleanQuote(s)));
+      return Data_Array.mapMaybe(justLetters)(cleanQuote(s));
+  };
+  var countLetters = function (s) {
+      return Data_Multiset.fromFoldable(Data_Foldable.foldableArray)(Data_Eq.eqChar)(Data_Ord.ordChar)(lettersOnly(s));
   };
   var answers = function (p) {
       return Data_Functor.map(Data_Functor.functorArray)(function ($117) {
-          return Data_String.toUpper((function (v) {
+          return Data_String.fromCharArray(lettersOnly((function (v) {
               return v.answer;
-          })($117));
+          })($117)));
       })(p.clues);
   };
   var lettersRemaining = function (p) {

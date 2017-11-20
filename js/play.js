@@ -1923,7 +1923,22 @@ var PS = {};
       result[n] = i;
       return result;
     };
-  };                    
+  };
+
+  var replicate = function (count) {
+    return function (value) {
+      if (count < 1) {
+        return [];
+      }
+      var result = new Array(count);
+      return result.fill(value);
+    };
+  };
+
+  // In browsers that have Array.prototype.fill we use it, as it's faster.
+  exports.replicate = typeof Array.prototype.fill === "function" ?
+      replicate :
+      replicatePolyfill;
 
   exports.fromFoldableImpl = (function () {
     // jshint maxparams: 2
@@ -2218,6 +2233,7 @@ var PS = {};
   exports["drop"] = $foreign.drop;
   exports["length"] = $foreign.length;
   exports["range"] = $foreign.range;
+  exports["replicate"] = $foreign.replicate;
   exports["snoc"] = $foreign.snoc;
   exports["take"] = $foreign.take;
   exports["zipWith"] = $foreign.zipWith;
@@ -3492,6 +3508,10 @@ var PS = {};
     return c;
   };
 
+  exports.fromCharArray = function (a) {
+    return a.join("");
+  };
+
   exports.length = function (s) {
     return s.length;
   };
@@ -3576,6 +3596,7 @@ var PS = {};
   exports["newtypePattern"] = newtypePattern;
   exports["newtypeReplacement"] = newtypeReplacement;
   exports["drop"] = $foreign.drop;
+  exports["fromCharArray"] = $foreign.fromCharArray;
   exports["joinWith"] = $foreign.joinWith;
   exports["length"] = $foreign.length;
   exports["replaceAll"] = $foreign.replaceAll;
@@ -4565,6 +4586,7 @@ var PS = {};
   var Data_Char = PS["Data.Char"];
   var Data_Either = PS["Data.Either"];
   var Data_Eq = PS["Data.Eq"];
+  var Data_EuclideanRing = PS["Data.EuclideanRing"];
   var Data_Foldable = PS["Data.Foldable"];
   var Data_Foreign = PS["Data.Foreign"];
   var Data_Function = PS["Data.Function"];
@@ -4639,7 +4661,9 @@ var PS = {};
       return ClueCharBoardIdx;
   })();                                                                                                                                                                                                                                                                                                   
   var showClueIdx = new Data_Show.Show(function (v) {
-      return Data_String.singleton(Data_Char.fromCharCode(Data_Char.toCharCode("A") + v | 0));
+      var len = (v / 26 | 0) + 1 | 0;
+      var c = Data_Char.fromCharCode(Data_Char.toCharCode("A") + v % 26 | 0);
+      return Data_String.fromCharArray(Data_Array.replicate(len)(c));
   });
   var showBoardIdx = new Data_Show.Show(function (v) {
       return Data_Show.show(Data_Show.showInt)(v + 1 | 0);
@@ -4759,11 +4783,20 @@ var PS = {};
   var cleanQuote = function (q) {
       return Data_Array.mapMaybe(charType)(Data_String.toCharArray(Data_String.toUpper(q)));
   };
+  var lettersOnly = function (s) {
+      var justLetters = function (v) {
+          if (v instanceof Letter) {
+              return new Data_Maybe.Just(v.value0);
+          };
+          return Data_Maybe.Nothing.value;
+      };
+      return Data_Array.mapMaybe(justLetters)(cleanQuote(s));
+  };
   var answers = function (p) {
       return Data_Functor.map(Data_Functor.functorArray)(function ($117) {
-          return Data_String.toUpper((function (v) {
+          return Data_String.fromCharArray(lettersOnly((function (v) {
               return v.answer;
-          })($117));
+          })($117)));
       })(p.clues);
   };
   exports["Letter"] = Letter;
