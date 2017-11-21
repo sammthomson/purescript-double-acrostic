@@ -1,7 +1,5 @@
 module Acrostic.Play where
 
-import Prelude hiding (div, id)
-
 import Acrostic.Edit (Cell(..), indexChars, renderCell, reshape)
 import Acrostic.Gist (loadPuzzleFromQueryString)
 import Acrostic.Puzzle (BoardIdx(..), CharIdx(..), CharMap, Clue, ClueCharBoardIdx(..), ClueCharIdx(..), ClueIdx(..), Puzzle, answers, clues)
@@ -10,20 +8,24 @@ import Control.Monad.Aff.Console (CONSOLE)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
 import DOM (DOM)
-import Data.Array (head, length, mapMaybe, zip, zipWith, (!!), (..))
+import Data.Array (fromFoldable, head, length, mapMaybe, toUnfoldable, zip, zipWith, (!!), (..))
 import Data.Bimap as B
-import Data.Foldable (foldl, traverse_)
+import Data.Foldable (class Foldable, foldl, traverse_)
 import Data.List as L
 import Data.Map as M
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (toCharArray, toUpper)
 import Data.Traversable (traverse)
 import Data.Tuple (Tuple(..), fst, snd)
+import Data.Unfoldable (class Unfoldable)
 import Flare (UI, fieldset)
 import Flare.Custom (upperChar, rowUi)
 import Flare.Smolder (runFlareHTML)
 import Network.HTTP.Affjax (AJAX)
+import Prelude hiding (div,id)
 import Signal.Channel (CHANNEL)
+import Test.QuickCheck.Gen (Gen, evalGen, shuffle)
+import Test.QuickCheck.LCG (mkSeed)
 import Text.Smolder.HTML (div, label, span, table, tr)
 import Text.Smolder.HTML.Attributes (id, for)
 import Text.Smolder.Markup (Markup, text, (!))
@@ -86,10 +88,22 @@ indexedGuesses p = f <$> (zipWithIndex $ zip (clues p.solution) idxdGuesses) whe
     boardIdx <- B.lookup cci invCharMap
     Just $ Tuple (ClueCharBoardIdx cci boardIdx) c
 
--- | Builds a map from char to a list of indices where it appears in clue
+
+shuffleVals :: forall t k v. Foldable t => Unfoldable t =>
+               M.Map k (t v) -> M.Map k (t v)
+shuffleVals m =
+  let
+    genState = { newSeed: mkSeed 31, size: 1 }
+    mapGen :: Gen (M.Map k (t v))
+    mapGen = traverse (map toUnfoldable <<< shuffle <<< fromFoldable) m
+  in
+    evalGen mapGen genState
+
+
+-- | Builds a map from char to an array of the indices where it appears in clue
 -- | guesses.
-groupCharsByIdx :: Array String -> M.Map Char (L.List ClueCharIdx)
-groupCharsByIdx clues = foldl step M.empty idxd where
+groupIdxsByChar :: Array String -> M.Map Char (L.List ClueCharIdx)
+groupIdxsByChar clues = shuffleVals $ foldl step M.empty idxd where
   idxd = join $ indexClueChars ((toCharArray <<< toUpper) <$> clues)
   step acc (Tuple cci c) =
     M.unionWith (<>) acc $ M.singleton c (L.singleton cci)
@@ -98,7 +112,7 @@ groupCharsByIdx clues = foldl step M.empty idxd where
 mkCharMap :: Puzzle -> CharMap
 mkCharMap p = fst result where
   result = foldl step start (indexChars p.quote)
-  start = Tuple B.empty (groupCharsByIdx (answers p))
+  start = Tuple B.empty (groupIdxsByChar (answers p))
   step (Tuple cMap rem) (LetterCell (BoardIdx i) c)
       -- these are pattern guards.
       -- this case of `step` only applies if they succeed

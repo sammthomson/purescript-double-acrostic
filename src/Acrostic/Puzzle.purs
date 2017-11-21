@@ -150,7 +150,7 @@ instance showBoardIdx :: Show BoardIdx where
 
 instance showClueCharBoardIdx :: Show ClueCharBoardIdx where
   show (ClueCharBoardIdx (ClueCharIdx clueIdx _) boardIdx) =
-    show clueIdx <> " " <> show boardIdx
+    show boardIdx <> " " <> show clueIdx
 
 derive instance newtypeClueIdx :: Newtype ClueIdx _
 derive instance eqClueIdx :: Eq ClueIdx
