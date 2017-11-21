@@ -124,7 +124,7 @@ renderPuzzle p =
   in
     do
       div $
-        button #! on "click" (eventListener save) $ text "Save"
+        button ! id "save-button" #! on "click" (eventListener save) $ text "Save"
       div $
         (renderBoard p.quote p.numCols) ! id "board"
       div $ do

@@ -24,6 +24,7 @@
 
 .flare-input-textarea {
   width: 350px;
+  height: 100px;
 }
 
 label {
@@ -58,8 +59,9 @@ td.err {
 
 td div.idx {
   height: 13px;
-  width: 27px;
+  width: 32px;
   font-size: x-small;
+  color: darkslategray;
 }
 
 td div.letter {
@@ -71,4 +73,12 @@ td div.letter {
 #chars-left, #chars-left td {
   border: 0px;
   text-align: right;
+}
+
+#save-button {
+  width: 70%;
+  height: 50px;
+  margin: 10px;
+  font-weight: bold;
+  font-size: x-large;
 }
